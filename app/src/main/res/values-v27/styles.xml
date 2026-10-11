@@ -1,0 +1,6 @@
+<resources>
+  <style name="AppTheme" parent="AppThemeBase">
+    <item name="android:windowLightNavigationBar">@bool/light_system_bars</item>
+    <item name="android:navigationBarColor">@color/bfi_page</item>
+  </style>
+</resources>

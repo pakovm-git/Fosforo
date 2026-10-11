@@ -1,0 +1,15 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:baselineAligned="false">
+    <TextView style="@style/Secondary" android:layout_width="0dp" android:layout_weight="1" android:text="@string/without_bfi" android:gravity="center" />
+    <TextView style="@style/Secondary" android:layout_width="0dp" android:layout_weight="1" android:text="@string/with_bfi" android:gravity="center" />
+  </LinearLayout>
+  <dev.pako.bfi.ui.MotionPreview android:id="@+id/motion_preview" android:layout_width="match_parent" android:layout_height="@dimen/home_preview_height" android:contentDescription="@string/preview_comparison" android:layout_marginBottom="8dp" />
+  <TextView android:id="@+id/state_label" style="@style/SectionTitle" android:textSize="24sp" android:layout_marginBottom="4dp" />
+  <TextView android:id="@+id/status_reason" style="@style/Secondary" android:layout_marginBottom="6dp" />
+  <TextView android:id="@+id/display_mode" style="@style/Body" />
+  <TextView android:id="@+id/pattern_summary" style="@style/Body" android:layout_marginTop="4dp" />
+  <TextView android:id="@+id/effective_summary" style="@style/Secondary" />
+  <TextView android:id="@+id/black_summary" style="@style/Secondary" />
+  <TextView android:id="@+id/target_summary" style="@style/Secondary" android:layout_marginTop="4dp" />
+  <TextView android:id="@+id/request_summary" style="@style/Secondary" />
+</LinearLayout>

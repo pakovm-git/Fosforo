@@ -1,0 +1,5 @@
+<resources>
+  <item name="scope_system" type="id"/><item name="scope_apps" type="id"/><item name="apps_search" type="id"/><item name="apps_list" type="id"/>
+  <item name="screen_first_card_scroll_wide" type="id"/><item name="screen_second_card_scroll_wide" type="id"/>
+  <item name="screen_first_card_scroll_narrow" type="id"/><item name="screen_second_card_scroll_narrow" type="id"/>
+</resources>

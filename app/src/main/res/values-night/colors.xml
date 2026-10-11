@@ -1,0 +1,20 @@
+<resources>
+  <color name="bfi_page">#0D0E16</color>
+  <color name="bfi_grid">#252639</color>
+  <color name="bfi_surface">#171824</color>
+  <color name="bfi_surface_secondary">#23243A</color>
+  <color name="bfi_text_primary">#EEF0FA</color>
+  <color name="bfi_text_secondary">#B5B5CD</color>
+  <color name="bfi_outline">#484A66</color>
+  <color name="bfi_action">#5748B5</color>
+  <color name="bfi_logo_outline">#5748B5</color>
+  <color name="bfi_on_action">#FFFFFF</color>
+  <color name="bfi_focus">#B9AFF2</color>
+  <color name="bfi_notice">#DDCB95</color>
+  <color name="bfi_stop">#943449</color>
+  <color name="bfi_on_stop">#FFFFFF</color>
+  <color name="bfi_pressed">#35324F</color>
+  <color name="bfi_disabled">#88879D</color>
+  <bool name="light_system_bars">false</bool>
+  <color name="bfi_legacy_navigation">#0D0E16</color>
+</resources>

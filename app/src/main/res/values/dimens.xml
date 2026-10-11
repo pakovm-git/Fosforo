@@ -1,0 +1,5 @@
+<resources>
+  <dimen name="home_preview_height">56dp</dimen>
+  <dimen name="settings_title_size">16sp</dimen>
+  <dimen name="restore_button_width">96dp</dimen>
+</resources>

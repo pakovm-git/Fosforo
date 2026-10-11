@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="316" height="100" viewBox="-2 -2 316 100">
+  <title>BFI framed letters — light</title>
+  <desc>BFI logo: B and I have filled violet frames with white letters. F and its frame are outline-only. Transparent background; each frame and letter is individually editable.</desc>
+  <g id="B" aria-label="B">
+    <rect x="0" y="0" width="96" height="96" rx="8" fill="#5748B5" stroke="none" stroke-width="3" id="B-frame" />
+    <path transform="translate(25.0 18)" d="M0 0H24C38 0 43 5 43 15C43 23 40 27 34 29C41 31 46 35 46 44C46 54 39 60 25 60H0Z M11 10V24H23C29 24 32 22 32 17C32 12 29 10 23 10Z M11 35V50H24C32 50 35 48 35 42C35 37 31 35 24 35Z" fill="#FFFFFF" fill-rule="evenodd" stroke="none" stroke-width="3" stroke-linejoin="round" id="B-letter" />
+  </g>
+  <g id="F" aria-label="F">
+    <rect x="108" y="0" width="96" height="96" rx="8" fill="none" stroke="#5748B5" stroke-width="3" id="F-frame" />
+    <path transform="translate(136.5 18)" d="M0 0H39V10H11V25H34V35H11V60H0Z" fill="none" fill-rule="evenodd" stroke="#5748B5" stroke-width="3" stroke-linejoin="round" id="F-letter" />
+  </g>
+  <g id="I" aria-label="I">
+    <rect x="216" y="0" width="96" height="96" rx="8" fill="#5748B5" stroke="none" stroke-width="3" id="I-frame" />
+    <path transform="translate(248.5 18)" d="M0 0H31V10H21V50H31V60H0V50H10V10H0Z" fill="#FFFFFF" fill-rule="evenodd" stroke="none" stroke-width="3" stroke-linejoin="round" id="I-letter" />
+  </g>
+</svg>

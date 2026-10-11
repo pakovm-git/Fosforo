@@ -1,0 +1,54 @@
+BFI native Android design guide — version 0.6
+
+Read this guide before changing the UI. Prefer the existing shared components and resource tokens. Keep session safety and persistence behavior intact while reorganizing presentation.
+
+1. Identity and background
+
+Use the selected light BFI vector logo in both appearances: filled violet B and I, outline-only F, no dot. The launcher uses the same fixed light logo centered in an adaptive 108dp foreground, with a static opaque dark CRT background (charcoal/violet radial shading and faint lavender scanlines). Keep the full mark inside the centered 66dp safe region so circle, rounded-square and other launcher masks preserve all letters. Use @mipmap/ic_launcher for icon and roundIcon; API33+ supplies an alpha-only monochrome layer with transparent B/I letter knockouts. Android chooses the outer mask; do not bake a circle into either layer. Keep notification/QS small icons separate. Editable SVG sources are in ../assets/logo/bfi-launcher-*.svg. The app follows the system light/dark setting. Use bfi_page, bfi_grid, bfi_surface, bfi_outline, bfi_text_primary, bfi_text_secondary, bfi_action and bfi_notice resources; do not duplicate palette literals in screens. The CRT sample has its own fixed approved white/violet palette.
+
+BlueprintDrawable owns the static page grid. ScreenActivity.configureInsets(root, window) draws it continuously behind the system status/navigation bars while padding interactive content for system bars, cutouts and the keyboard. Do not add a separate flat-colored title/status strip, duplicate an inset, hide system navigation, or put controls beneath a system bar. Keep dark/light system icon contrast appropriate. Floating platform dialogs remain normal dialogs.
+
+2. Screen anatomy
+
+Use a fixed header and a body constrained to the remaining window height. Settings screens share activity_settings.xml and settings_header.xml: Back at the leading edge, vertically centered title, contextual Advanced when applicable, Restore defaults at the trailing edge. Advanced belongs to the global Settings header. Stop joins the header while enabled so it does not consume body height. Below 400dp, Advanced/Stop use a second header row. Keep headers usable at narrow widths; allow Restore defaults to wrap. Maintain at least 48dp touch targets. No Done or Save footer. Keep the keyboard hidden on forward navigation; explicit field/search taps can open it. Handle keyboard resize with the same bounded cards.
+
+For two-panel screens use ScreenActivity.boundedCards / ScreenCards. Wide windows (>=600dp) use horizontal cards; narrow windows stack them. Card backgrounds and outlines belong to the ScrollView viewport, NOT to the scrolling content. The viewport is bounded/weighted to the available body height. Its inner LinearLayout can scroll independently. Do not wrap these cards in a whole-page ScrollView, nest scroll containers, or use wrap_content for an outer card's constrained height. Distinct wide/narrow scroll IDs preserve correct rotation state.
+
+Home retains its bounded status/action cards and always-accessible On/Off control. Resume after unlock belongs in Home’s fixed header and autosaves through the repository; it is not an Advanced preference and neither Settings nor Advanced resets it. Its saved value, not restored widget state, drives the checkbox. Global Settings puts the synchronized motion comparison first, then the visible/black pattern diagram, black fraction and nominal cadence, all in the preview card. Frame pattern selection and custom slot controls go in the second card. Standard-size global Settings should show everything without scrolling in both Retroid orientations. Compact helper text replaces redundant prose; do not remove errors, essential controls or increase/decrease buttons to force a fit.
+
+Advanced uses two bounded cards: display/recovery and tests/diagnostics/permissions. Its longer content scrolls inside its cards. Apps keeps System wide/Apps and Selected apps/search above a weighted recycling ListView. The app list stays inline, with no selection dialog or nested ScrollView. New long-content screens should follow the same bounded-viewport principle.
+
+3. Spacing and text
+
+Use 16dp outside screen padding, 12dp between panels, 12dp inside compact settings cards, 16dp inside Home cards, 4–8dp for tightly related controls. Use the existing card drawable for the radius and outline. Titles use sans-serif-medium and resource sizes; body text normally 16sp, helper text 14sp, compact comparison labels 12sp. Use sp for text and dp for geometry. Large text, multi-window, keyboard and long per-app titles must remain accessible through internal scrolling rather than clipping or shrinking text below readable size.
+
+Keep both comparison labels in equal-width columns. Respect RTL ordering in labels and drawing: the BFI pane follows its label. Mark meaningful headings for accessibility on supported API levels. Give icon/image-only elements descriptions, and keep decorative effects out of the accessibility tree.
+
+4. Native CRT comparison
+
+MotionPreview remains the single shared two-ball comparison for Home and Settings. CrtPreview composites prebuilt PNG assets: white background/baseline, transparent soft ball sprite with RGB fringes, eight scanline/grain overlays, and a curved-edge/vignette mask. Assets are drawable-nodpi and decoded once via CrtPreviewAssets; buffers are immutable/shared. Each View reuses Paint and RectF instances. Do not blur bitmaps, generate noise, decode resources, allocate full-frame buffers or create objects in onDraw/doFrame. No GLSL, AGSL, WebView or 3D engine is required.
+
+Use the existing Choreographer callbacks, absolute LocalBfiClock phase and reported display rate. Stop callbacks when detached, hidden or offscreen. Motion uses elapsed time; it must not depend on callback count. The two panes draw the same source at the same position. The filtered pane's black slots skip ALL CRT layers and draw opaque black; no glow/grain leaks into a black frame. Its decorative boundary outline may remain visible.
+
+LocalBfiPresentation exempts the entire comparison rectangle from the surrounding in-app mask because MotionPreview owns its filtered pane. This avoids applying a global pattern on top of a per-app/draft preview. The Home preview and surrounding mask still share the same absolute phase and committed global pattern. Settings previews use valid draft values; invalid text keeps the last valid animation. A comparison never starts the system overlay, writes settings, contributes diagnostic counters or claims physical display timing accuracy.
+
+The fixed raster approximation is for these preview animations, not a general CRT filter over third-party apps. Its visual match and frame timing need actual device checks. Asset regeneration is an offline developer task; do not add runtime dependencies or require users to install graphics tools.
+
+5. Actions and persistence
+
+Valid settings changes autosave through the existing SettingsRepository/SettingsCommitQueue and apply to enabled sessions only after committing. Preserve partial numeric drafts across rotation; reject invalid/overflow values without saving them. Never let a stale save overwrite another setting. Reject delayed preset callbacks whose position is no longer the Spinner’s current selection, so an earlier preset cannot replace a newer custom draft. Do not add a Save/Done/discard flow.
+
+Restore defaults is scoped, top-right and confirmed; preserve permission grants and first-use acknowledgment. Apps and per-app rules retain their existing semantics. Keep Off/On intent separate from preferred scope: a tile tap toggles preferred scope versus Off, and long press opens the explicit mode menu. Opening/rotating screens or granting setup access must never activate BFI.
+
+Keep a Stop action reachable while enabled. The app's own controls stay touchable through the native in-window decoration. Do not weaken Android overlay security, reduce real black-frame opacity, auto-start after process death/reboot, or alter timed deadlines to make a UI demo work.
+
+6. Required review for UI changes
+
+Build and run relevant existing tests/lint using the established SDK/JDK or Toolbx script; do not migrate the toolchain for a visual edit. Inspect the actual app on Retroid in light/dark and wide/narrow layouts. Normal Home and global Settings must show all primary content at the standard text size. Check card borders stay stationary while overflowing content moves. Check header alignment, status-bar grid continuity, keyboard insets, per-app editing and accessible large-text scrolling. Rotate with drafts and while locally enabled; confirm no crash or automatic activation. Preserve and restore the user's CURRENT preferences and device display/theme settings after test edits. Never restore a stale backup from an earlier release.
+
+For previews inspect both visible and black phases, including local BFI enabled, and confirm the reference stays visible. Report actual measured device render observations separately from claims about physical 120Hz/optical BFI accuracy. Share a versioned APK and its checksum with the original package/signing identity. Keep README, implementation notes and release progress current.
+
+Native API references
+
+https://developer.android.com/develop/ui/views/layout/edge-to-edge-manually
+https://developer.android.com/develop/ui/views/graphics/hardware-accel

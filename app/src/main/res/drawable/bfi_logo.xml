@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="126.4dp" android:height="40dp" android:viewportWidth="316" android:viewportHeight="100">
+  <group android:translateX="2" android:translateY="2">
+    <group android:name="B">
+      <path android:name="B-frame" android:fillColor="@color/bfi_action" android:pathData="M8.0,0 H88.0 Q96.0,0 96.0,8 V88 Q96.0,96 88.0,96 H8.0 Q0.0,96 0.0,88 V8 Q0.0,0 8.0,0 Z" />
+      <group android:translateX="25.0" android:translateY="18">
+        <path android:name="B-letter" android:fillColor="@color/bfi_on_action" android:pathData="M0 0H24C38 0 43 5 43 15C43 23 40 27 34 29C41 31 46 35 46 44C46 54 39 60 25 60H0Z M11 10V24H23C29 24 32 22 32 17C32 12 29 10 23 10Z M11 35V50H24C32 50 35 48 35 42C35 37 31 35 24 35Z" android:fillType="evenOdd" />
+      </group>
+    </group>
+    <group android:name="F">
+      <path android:name="F-frame" android:fillColor="#00000000" android:strokeColor="@color/bfi_logo_outline" android:strokeWidth="3" android:strokeLineJoin="round" android:pathData="M116.0,0 H196.0 Q204.0,0 204.0,8 V88 Q204.0,96 196.0,96 H116.0 Q108.0,96 108.0,88 V8 Q108.0,0 116.0,0 Z" />
+      <group android:translateX="136.5" android:translateY="18">
+        <path android:name="F-letter" android:fillColor="#00000000" android:strokeColor="@color/bfi_logo_outline" android:strokeWidth="3" android:strokeLineJoin="round" android:pathData="M0 0H39V10H11V25H34V35H11V60H0Z" android:fillType="evenOdd" />
+      </group>
+    </group>
+    <group android:name="I">
+      <path android:name="I-frame" android:fillColor="@color/bfi_action" android:pathData="M224.0,0 H304.0 Q312.0,0 312.0,8 V88 Q312.0,96 304.0,96 H224.0 Q216.0,96 216.0,88 V8 Q216.0,0 224.0,0 Z" />
+      <group android:translateX="248.5" android:translateY="18">
+        <path android:name="I-letter" android:fillColor="@color/bfi_on_action" android:pathData="M0 0H31V10H21V50H31V60H0V50H10V10H0Z" android:fillType="evenOdd" />
+      </group>
+    </group>
+  </group>
+</vector>

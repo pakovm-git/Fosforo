@@ -1,0 +1,14 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingBottom="8dp" android:layout_marginBottom="12dp" android:baselineAligned="false">
+    <ImageView android:id="@+id/home_logo" android:layout_width="126.4dp" android:layout_height="40dp" android:src="@drawable/bfi_logo" android:contentDescription="@string/app_name" android:scaleType="fitCenter" />
+    <Space android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
+  <CheckBox android:id="@+id/resume_unlock_action" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/resume_unlock" android:textSize="16sp" android:textColor="@color/bfi_text_primary" android:buttonTint="@color/bfi_action" android:saveEnabled="false" android:maxWidth="280dp" android:layout_marginStart="8dp" />
+  </LinearLayout>
+  <Button android:id="@+id/main_action" style="@style/PrimaryAction" android:text="@string/turn_on" android:layout_marginBottom="10dp" />
+  <ScrollView android:id="@+id/status_scroll_narrow" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1.5" android:background="@drawable/card" android:padding="16dp" android:layout_marginBottom="12dp" android:fillViewport="true" android:scrollbarStyle="outsideInset">
+    <include layout="@layout/home_status" />
+  </ScrollView>
+  <ScrollView android:id="@+id/actions_scroll_narrow" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:background="@drawable/card" android:padding="16dp" android:fillViewport="true" android:scrollbarStyle="outsideInset">
+    <include layout="@layout/home_actions" />
+  </ScrollView>
+</LinearLayout>
