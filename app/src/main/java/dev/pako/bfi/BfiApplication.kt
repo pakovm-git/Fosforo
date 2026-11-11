@@ -20,6 +20,7 @@ class BfiApplication : Application() {
         val release=Runnable { if (resumed.isEmpty()) runtime.controlsVisibility(false) }
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityResumed(activity: Activity) {
+                if(activity is dev.pako.bfi.ui.TestEffectsActivity){runtime.controlsVisibility(false);return}
                 resumed.add(activity); main.removeCallbacks(release); runtime.controlsVisibility(true)
             }
             override fun onActivityPaused(activity: Activity) {

@@ -15,6 +15,7 @@ object UiText {
         Phase.SUSPENDED -> R.string.state_suspended; Phase.RETRY_WAIT -> R.string.state_retry; Phase.BLOCKED -> R.string.state_blocked; Phase.FAILED -> R.string.state_failed
     })
     fun reason(context: Context,reason: Reason) = context.getString(when (reason) {
+        Reason.ACCESSIBILITY -> R.string.reason_accessibility; Reason.CAPTURE -> R.string.reason_capture; Reason.NO_EFFECT -> R.string.reason_no_effect; Reason.UNSUPPORTED -> R.string.reason_unsupported;
         Reason.READY -> R.string.reason_ready; Reason.MANUAL -> R.string.reason_manual; Reason.TIMEOUT -> R.string.reason_timeout; Reason.SLEEP -> R.string.reason_sleep
         Reason.CONTROLS -> R.string.reason_controls; Reason.EXCLUDED -> R.string.reason_excluded; Reason.UNKNOWN_APP -> R.string.reason_unknown; Reason.OVERLAY -> R.string.reason_permission
         Reason.NOTIFICATION -> R.string.reason_notification; Reason.USAGE -> R.string.reason_usage; Reason.LOW_RATE -> R.string.reason_low_rate

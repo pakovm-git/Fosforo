@@ -17,7 +17,6 @@ abstract class ScreenActivity : Activity() {
     protected lateinit var resetButton: Button
     protected var screenStarted=false
     protected var callbackGeneration=0L
-    private lateinit var presentation: LocalBfiPresentation
     private var unsubscribe: (() -> Unit)? = null
     private var backCallback: android.window.OnBackInvokedCallback? = null
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,7 +29,6 @@ abstract class ScreenActivity : Activity() {
                 .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.restore_defaults) { _,_ -> restoreDefaults() }.show()
         }
         configureInsets(findViewById(R.id.root),window)
-        presentation=LocalBfiPresentation(this,runtime)
         if (Build.VERSION.SDK_INT >= 33) {
             val callback=android.window.OnBackInvokedCallback { requestClose() }; backCallback=callback
             onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,callback)
@@ -84,7 +82,7 @@ abstract class ScreenActivity : Activity() {
     protected abstract fun restoreDefaults()
     protected open fun refreshScreen() { }
     override fun onStart() {
-        super.onStart(); presentation.start(); screenStarted=true; callbackGeneration++
+        super.onStart(); screenStarted=true; callbackGeneration++
         unsubscribe=runtime.subscribe {
             val enabled=runtime.state.userEnabled
             findViewById<TextView>(R.id.editing_help).apply {
@@ -96,7 +94,7 @@ abstract class ScreenActivity : Activity() {
             refreshScreen()
         }
     }
-    override fun onStop() { presentation.stop(); screenStarted=false; callbackGeneration++; unsubscribe?.invoke(); unsubscribe=null; super.onStop() }
+    override fun onStop() { screenStarted=false; callbackGeneration++; unsubscribe?.invoke(); unsubscribe=null; super.onStop() }
     override fun onDestroy() {
         if (Build.VERSION.SDK_INT >= 33) backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
         super.onDestroy()

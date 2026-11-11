@@ -22,12 +22,33 @@ class MainActivity : Activity(),DisplayManager.DisplayListener {
     private var unsubscribe: (() -> Unit)? = null
     private var started=false
     private var updatingResume=false
-    private lateinit var presentation: LocalBfiPresentation
+    private var changingEffects=false
+    private var pendingCapture:StartRequest?=null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); ExperimentService.prepareChannel(this); setContentView(R.layout.activity_main)
         ScreenActivity.configureInsets(findViewById(R.id.root),window)
         if (Build.VERSION.SDK_INT >= 28) findViewById<View>(R.id.home_logo).isAccessibilityHeading=true
-        presentation=LocalBfiPresentation(this,runtime)
+        findViewById<Button>(R.id.crt_action).setOnClickListener { startActivity(Intent(this,ShaderActivity::class.java)) }
+        findViewById<Button>(R.id.test_action).setOnClickListener { startActivity(Intent(this,TestEffectsActivity::class.java)) }
+        findViewById<Button>(R.id.restart_crt).setOnClickListener {
+            val state=runtime.state;runtime.stop();begin(runtime.prepareStart(state.mode,state.deadlineUptimeMillis))
+        }
+        for ((id,crt) in listOf(R.id.bfi_switch to false,R.id.crt_switch to true)) {
+            findViewById<Switch>(id).setOnCheckedChangeListener { _,value ->
+                if(!changingEffects){
+                    val settings=runtime.repository.settings
+                    if(settings!=null){
+                        val restart=crt && runtime.state.userEnabled
+                        val state=runtime.state
+                        if(restart)runtime.stop()
+                        val request=runtime.prepareStart(state.mode,state.deadlineUptimeMillis)
+                        runtime.repository.save(if(crt)settings.copy(crtEnabled=value) else settings.copy(bfiEnabled=value)){success ->
+                            if(success && restart && started)begin(request)
+                        }
+                    }
+                }
+            }
+        }
         findViewById<Button>(R.id.main_action).setOnClickListener { if (runtime.state.userEnabled) runtime.stop() else begin() }
         findViewById<Button>(R.id.pattern_action).setOnClickListener { startActivity(Intent(this,PatternActivity::class.java)) }
         findViewById<Button>(R.id.apps_action).setOnClickListener { startActivity(Intent(this,AppsActivity::class.java)) }
@@ -46,12 +67,22 @@ class MainActivity : Activity(),DisplayManager.DisplayListener {
         }
     }
     override fun onStart() {
-        super.onStart(); presentation.start(); started=true; unsubscribe=runtime.subscribe { update() }
+        super.onStart(); started=true; unsubscribe=runtime.subscribe { update() }
         getSystemService(DisplayManager::class.java).registerDisplayListener(this,main)
     }
-    override fun onStop() { presentation.stop(); started=false; unsubscribe?.invoke(); unsubscribe=null; getSystemService(DisplayManager::class.java).unregisterDisplayListener(this); super.onStop() }
+    override fun onStop() { started=false; unsubscribe?.invoke(); unsubscribe=null; getSystemService(DisplayManager::class.java).unregisterDisplayListener(this); super.onStop() }
     private fun update() {
         val state=runtime.state; val settings=runtime.repository.settings
+        changingEffects=true
+        findViewById<Switch>(R.id.bfi_switch).apply{isChecked=settings?.bfiEnabled?:true;isEnabled=settings!=null}
+        findViewById<Switch>(R.id.crt_switch).apply{isChecked=settings?.crtEnabled?:false;isEnabled=settings!=null && runtime.usesModernOutput}
+        changingEffects=false
+        findViewById<View>(R.id.restart_crt).visibility=if(runtime.crtNeedsRestart)View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.crt_summary).text=if(runtime.crtNeedsRestart)getString(R.string.crt_unlock_notice)
+            else if(settings?.crtEnabled==true)dev.pako.bfi.effects.ShaderCatalog.choices(this).firstOrNull{it.id==settings.shaderId}?.label?:getString(R.string.shader_missing)
+            else getString(R.string.crt_off)
+        findViewById<Button>(R.id.test_action).isEnabled=!state.userEnabled && settings!=null && !runtime.repository.writing
+        findViewById<TextView>(R.id.input_notice).setText(if(runtime.usesModernOutput)R.string.touch_passes else R.string.input_notice)
         updatingResume=true
         findViewById<CheckBox>(R.id.resume_unlock_action).apply {
             isEnabled=settings != null
@@ -59,7 +90,7 @@ class MainActivity : Activity(),DisplayManager.DisplayListener {
         }
         updatingResume=false
         val action=findViewById<Button>(R.id.main_action)
-        action.setText(if (state.userEnabled) R.string.turn_off else R.string.turn_on)
+        action.setText(if (state.userEnabled) R.string.stop_effects else R.string.start_effects)
         action.setBackgroundResource(if (state.userEnabled) R.drawable.stop_action else R.drawable.primary_action)
         action.setTextColor(getColorStateList(if (state.userEnabled) R.color.stop_action_text else R.color.primary_action_text))
         action.isEnabled=state.userEnabled || (!runtime.repository.writing && runtime.repository.status !is SettingsStatus.Loading)
@@ -80,11 +111,7 @@ class MainActivity : Activity(),DisplayManager.DisplayListener {
         if (readiness != null) reason.text=UiText.reason(this,readiness)
         findViewById<TextView>(R.id.display_mode).text=runtime.display()?.let { getString(R.string.observed_mode,UiText.decimal(it.refreshRate.toDouble())) } ?: getString(R.string.unknown_rate)
         if (settings != null) {
-            findViewById<MotionPreview>(R.id.motion_preview).apply {
-                pattern=(runtime.repository.committedSettings ?: settings).globalPattern
-                reportedHz=runtime.display()?.refreshRate?.toDouble() ?: 60.0
-            }
-            findViewById<TextView>(R.id.pattern_summary).text=UiText.pattern(this,settings.globalPattern)
+            findViewById<TextView>(R.id.pattern_summary).text=if(settings.multiStepPattern.isEmpty())UiText.pattern(this,settings.globalPattern) else settings.multiStepPattern
             findViewById<TextView>(R.id.black_summary).text=getString(R.string.black_fraction,UiText.fraction(if (state.userEnabled) state.effectivePattern else settings.globalPattern))
             val effective=findViewById<TextView>(R.id.effective_summary)
             effective.visibility=if (state.userEnabled && state.effectivePattern != settings.globalPattern) View.VISIBLE else View.GONE
@@ -97,7 +124,8 @@ class MainActivity : Activity(),DisplayManager.DisplayListener {
             findViewById<Button>(R.id.apps_action).text=getString(R.string.home_apps_action,getString(if (settings.activationMode == ActivationMode.ALL_APPS) R.string.system_wide else R.string.home_scope_apps))
         }
     }
-    private fun begin() {
+    private fun begin(request:StartRequest=runtime.prepareStart()) {
+        if(!runtime.accepts(request))return
         val repository=runtime.repository
         if (repository.status is SettingsStatus.Error) {
             AlertDialog.Builder(this).setTitle(R.string.setup_title).setMessage(R.string.settings_error)
@@ -114,12 +142,17 @@ class MainActivity : Activity(),DisplayManager.DisplayListener {
                     if (!runtime.state.userEnabled) repository.save(settings.copy(acceptedNoticeVersion=1)) { success -> if (started && !success) Toast.makeText(this,R.string.save_failed,Toast.LENGTH_LONG).show() }
                 }.show(); return
         }
+        if(runtime.readiness()==Reason.CAPTURE){
+            if(pendingCapture==null){pendingCapture=request;startActivityForResult(getSystemService(android.media.projection.MediaProjectionManager::class.java).createScreenCaptureIntent(),200)}
+            return
+        }
         if (runtime.readiness() != null) { showSetup(); return }
-        runtime.start()
+        runtime.start(request)
     }
     private fun showSetup() {
         val choices=mutableListOf<Int>()
-        if (!Settings.canDrawOverlays(this)) choices.add(R.string.overlay_permission)
+        if (runtime.usesModernOutput && dev.pako.bfi.effects.EffectAccessibilityService.instance==null)choices.add(R.string.accessibility_permission)
+        if (!runtime.usesModernOutput && !Settings.canDrawOverlays(this)) choices.add(R.string.overlay_permission)
         if (!ExperimentService.notificationsReady(this)) choices.add(R.string.notification_permission)
         if (runtime.repository.settings?.needsAppIdentity == true && !dev.pako.bfi.rules.ForegroundAppMonitor.hasAccess(this)) choices.add(R.string.usage_permission)
         if (runtime.readiness() == Reason.LOW_RATE) choices.add(R.string.display_settings)
@@ -127,6 +160,7 @@ class MainActivity : Activity(),DisplayManager.DisplayListener {
         choices.add(R.string.advanced_title)
         AlertDialog.Builder(this).setTitle(R.string.setup_title).setItems(choices.map { getString(it) }.toTypedArray()) { _,index ->
             when (choices[index]) {
+                R.string.accessibility_permission -> openSettings(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 R.string.overlay_permission -> openSettings(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName")))
                 R.string.notification_permission -> if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),1)
                     else openSettings(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,packageName))
@@ -136,6 +170,11 @@ class MainActivity : Activity(),DisplayManager.DisplayListener {
                 else -> startActivity(Intent(this,AdvancedActivity::class.java))
             }
         }.setNegativeButton(R.string.cancel,null).show()
+    }
+    @Deprecated("Platform result callback retained for native Activity")
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
+        super.onActivityResult(requestCode,resultCode,data)
+        if(requestCode==200){val request=pendingCapture;pendingCapture=null;if(resultCode==RESULT_OK && data!=null && request!=null)runtime.start(request,data)}
     }
     private fun openSettings(intent: Intent) { try { startActivity(intent) } catch (_: RuntimeException) { Toast.makeText(this,R.string.no_settings,Toast.LENGTH_LONG).show() } }
     override fun onDisplayChanged(displayId: Int) { if (displayId == Display.DEFAULT_DISPLAY && started) update() }

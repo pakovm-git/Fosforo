@@ -22,6 +22,17 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 class BfiRuntime(private val context: Context, val main: Handler, val repository: SettingsRepository) {
+    var captureConsent:Intent?=null
+    var captureActive=false
+    var crtNeedsRestart=false
+        private set
+    var testing=false
+    fun captureLostForLock() {
+        captureActive=false; captureConsent=null; crtNeedsRestart=true
+        if (!state.settings.bfiEnabled) stop(Reason.SLEEP) else reconcile()
+        publish()
+    }
+    val usesModernOutput get()=android.os.Build.VERSION.SDK_INT>=33
     private val controller = BfiController()
     val state get() = controller.state
     private var service: ExperimentService? = null
@@ -45,11 +56,17 @@ class BfiRuntime(private val context: Context, val main: Handler, val repository
     var controlsVisible=false
         private set
     private var userCommand=0L
+    fun prepareStart(mode:SessionMode=SessionMode.Continuous,deadline:Long?=null)=StartRequest(++userCommand,mode,deadline)
+    fun accepts(request:StartRequest)=request.accepts(userCommand,SystemClock.uptimeMillis())
+    fun start(request:StartRequest,consent:Intent?=null) {
+        if(accepts(request))start(request.mode,consent,request.deadline)
+    }
     fun controlsVisibility(visible: Boolean) {
         if (controlsVisible == visible) return
         controlsVisible=visible
         foregroundPackage=null // Re-baseline identity after returning to another app.
         reconcile()
+        service?.syncEffects()
     }
     /** An explicit menu choice updates the preferred mode, then activates only if not superseded. */
     fun chooseMode(mode: ActivationMode,completed: (Boolean) -> Unit) {
@@ -93,22 +110,27 @@ class BfiRuntime(private val context: Context, val main: Handler, val repository
     fun readiness(s: BfiSettings? = repository.settings, requireSaved: Boolean = true): Reason? {
         if (s == null || (requireSaved && repository.writing)) return Reason.SETTINGS
         if (s.acceptedNoticeVersion < 1) return Reason.NOTICE
-        if (!Settings.canDrawOverlays(context)) return Reason.OVERLAY
+        if (!s.bfiEnabled && !s.crtEnabled) return Reason.NO_EFFECT
+        if (s.crtEnabled && !usesModernOutput) return Reason.UNSUPPORTED
+        if (usesModernOutput && dev.pako.bfi.effects.EffectAccessibilityService.instance==null) return Reason.ACCESSIBILITY
+        if (s.crtEnabled && (!crtNeedsRestart || !s.bfiEnabled) && captureConsent==null && !captureActive) return Reason.CAPTURE
+        if (!usesModernOutput && !Settings.canDrawOverlays(context)) return Reason.OVERLAY
         if (!ExperimentService.notificationsReady(context)) return Reason.NOTIFICATION
         if (s.needsAppIdentity && !ForegroundAppMonitor.hasAccess(context)) return Reason.USAGE
         if (s.activationMode == ActivationMode.SELECTED_APPS && s.includedPackages.isEmpty()) return Reason.EMPTY_SELECTED
         val display = display() ?: return Reason.NO_DISPLAY
         if (s.requestRefresh && resolved(s) == null) return Reason.TARGET_UNAVAILABLE
         val rate = if (s.requestRefresh && (!state.userEnabled || state.phase != Phase.RUNNING)) resolved(s)?.hz ?: 0.0 else display.refreshRate.toDouble()
-        if (!rate.isFinite() || rate < 100.0) return Reason.LOW_RATE
+        if (!rate.isFinite() || (s.bfiEnabled && rate < 100.0)) return Reason.LOW_RATE
         return null
     }
-    fun start(mode: SessionMode = SessionMode.Continuous) {
+    fun start(mode: SessionMode = SessionMode.Continuous, consent:Intent?=null,deadline:Long?=null) {
         userCommand++
         if (state.userEnabled) return
+        captureConsent=consent; crtNeedsRestart=false
         val s=repository.settings ?: BfiSettings()
         val problem=readiness() ?: if (!awake()) Reason.SLEEP else null
-        val effects=controller.start(s,mode,SystemClock.uptimeMillis(),problem)
+        val effects=controller.start(s,mode,SystemClock.uptimeMillis(),problem,deadline)
         publish()
         if (!state.userEnabled) { dispatch(effects); return }
         startedElapsed=SystemClock.elapsedRealtime()
@@ -135,10 +157,11 @@ class BfiRuntime(private val context: Context, val main: Handler, val repository
     fun appChanged(pkg: String?, hasAccess: Boolean) {
         foregroundPackage=pkg
         if (!hasAccess && state.userEnabled) dispatch(controller.stop(Reason.USAGE,Phase.BLOCKED)) else reconcile()
+        service?.syncEffects()
     }
     fun reconcile(retry: Boolean = false) {
         if (!state.userEnabled) return
-        val eligibility=if (controlsVisible) Eligibility(null,Reason.CONTROLS) else AppRuleResolver.resolve(state.settings,foregroundPackage)
+        val eligibility=AppRuleResolver.resolveOutput(state.settings,foregroundPackage,controlsVisible,testing,usesModernOutput)
         dispatch(controller.reconcile(awake(),readiness(state.settings,requireSaved=false),eligibility.pattern,eligibility.reason,retry))
         service?.updateMonitoring()
     }
@@ -173,6 +196,7 @@ class BfiRuntime(private val context: Context, val main: Handler, val repository
             is Effect.Render -> if (accepts(effect.epoch)) service?.requestRender(effect.epoch)
             Effect.RemoveRender -> service?.removeRender()
             Effect.EndService -> {
+                captureConsent=null; captureActive=false; crtNeedsRestart=false; testing=false
                 scheduled.forEach { main.removeCallbacks(it) }; scheduled.clear()
                 val old=service; service=null; old?.endSession()
                 if (old == null && state.session > 0 && reportSession != state.session) {

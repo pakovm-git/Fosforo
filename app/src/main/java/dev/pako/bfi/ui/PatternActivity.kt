@@ -23,7 +23,7 @@ class PatternActivity : ScreenActivity() {
     private lateinit var preview: PatternPreview
     private lateinit var fraction: TextView
     private lateinit var cadence: TextView
-    private lateinit var motion: MotionPreview
+    private var sequence:EditText?=null
     private var baseline=BfiPattern()
     private var baselineGlobal=false
     private var baselineExcluded=false
@@ -35,15 +35,6 @@ class PatternActivity : ScreenActivity() {
         // Replace the whole-page scroller with two bounded, independently scrolling cards.
         val panels=boundedCards(); val left=panels.preview; val right=panels.controls
         val compact=resources.configuration.screenWidthDp < 600
-        val labels=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
-        for (label in listOf(R.string.without_bfi,R.string.with_bfi)) {
-            labels.addView(TextView(this).apply {
-                setText(label); textSize=12f; gravity=Gravity.CENTER; setTextColor(getColor(R.color.bfi_text_secondary))
-            },LinearLayout.LayoutParams(0,-2,1f))
-        }
-        left.addView(labels,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=dp(4) })
-        motion=MotionPreview(this).apply { id=R.id.motion_preview; contentDescription=getString(R.string.preview_comparison) }
-        left.addView(motion,LinearLayout.LayoutParams(-1,resources.getDimensionPixelSize(R.dimen.home_preview_height)).apply { bottomMargin=dp(if(compact) 4 else 6) })
         section(R.string.pattern_preview_short,left).apply { textSize=16f; (layoutParams as LinearLayout.LayoutParams).bottomMargin=dp(if(compact) 2 else 4) }
         preview=PatternPreview(this); left.addView(preview,LinearLayout.LayoutParams(-1,dp(if(compact) 28 else 32)).apply { bottomMargin=dp(4) })
         fraction=text(R.string.loading,left,true).apply { (layoutParams as LinearLayout.LayoutParams).bottomMargin=dp(2) }
@@ -86,6 +77,23 @@ class PatternActivity : ScreenActivity() {
         if (pkg == null) findViewById<Button>(R.id.advanced_action).apply {
             visibility=View.VISIBLE; setOnClickListener { startActivity(android.content.Intent(this@PatternActivity,AdvancedActivity::class.java)) }
         }
+        if(pkg==null){
+            section(R.string.multi_step_title,left)
+            text(R.string.multi_step_help,left,true)
+            sequence=EditText(this).apply {
+                hint="1, 1, 2, 1";setSingleLine(true);inputType=android.text.InputType.TYPE_CLASS_TEXT
+                setText(restored?.getString("sequence")?:repository.settings?.multiStepPattern.orEmpty())
+            }.also{left.addView(it,LinearLayout.LayoutParams(-1,-2))}
+            sequence!!.addTextChangedListener(object:TextWatcher {
+                override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int)=Unit
+                override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int)=Unit
+                override fun afterTextChanged(s:Editable?){
+                    val value=s.toString().trim();val settings=repository.settings?:return
+                    if(value.isEmpty() || dev.pako.bfi.effects.BfiPattern.parse(value)!=null){sequence!!.error=null;save(settings.copy(multiStepPattern=value))}
+                    else sequence!!.error=getString(R.string.multi_step_error)
+                }
+            })
+        }
         initialize()
     }
     private fun slotField(parent: LinearLayout,label: Int,minus: Int,plus: Int): EditText {
@@ -109,6 +117,7 @@ class PatternActivity : ScreenActivity() {
         baseline=pkg?.let { settings.overrides[it] } ?: settings.globalPattern
         baselineGlobal=pkg != null && pkg !in settings.overrides; baselineExcluded=pkg in settings.excludedPackages
         changing=true
+        if(pkg==null && restored==null)sequence?.setText(settings.multiStepPattern)
         visible.setText(restored?.getString("visible") ?: UiText.integer(baseline.visibleSlots)); black.setText(restored?.getString("black") ?: UiText.integer(baseline.blackSlots))
         global.isChecked=restored?.getBoolean("global") ?: baselineGlobal; exclusion.isChecked=restored?.getBoolean("excluded") ?: baselineExcluded
         val p=parsed(); preset.setSelection(if (restored != null) restored!!.getInt("preset",0) else BfiPattern.presets.indexOf(p).let { if (it < 0) 0 else it+1 })
@@ -126,11 +135,8 @@ class PatternActivity : ScreenActivity() {
         if (black.text.toString().toIntOrNull() in 1..12) black.error=null
         val p=if (pkg != null && global.isChecked) repository.settings?.globalPattern else parsed()
         preview.pattern=p
-        // Invalid drafts keep the last valid animation; no invalid setting enters the clock.
-        motion.pattern=p ?: (pkg?.let { repository.settings?.overrides?.get(it) } ?: repository.settings?.globalPattern ?: baseline)
         fraction.text=p?.let { getString(R.string.black_fraction,UiText.fraction(it)) } ?: getString(R.string.slot_bounds)
         val hz=runtime.display()?.refreshRate?.toDouble()
-        if (hz != null) motion.reportedHz=hz
         cadence.text=if (p != null && hz != null) getString(R.string.nominal_rate_compact,UiText.decimal(hz),UiText.decimal(p.cyclesPerSecond(hz))) else getString(R.string.unknown_rate)
     }
     private fun updateEditable() {
@@ -163,12 +169,13 @@ class PatternActivity : ScreenActivity() {
         updatePreview(); updateEditable()
         if (pkg == null) {
             val s=repository.settings ?: return; val d=BfiSettings()
-            save(s.copy(globalPattern=d.globalPattern,refreshTarget=d.refreshTarget,requestRefresh=d.requestRefresh,
+            sequence?.setText("")
+            save(s.copy(globalPattern=d.globalPattern,multiStepPattern="",refreshTarget=d.refreshTarget,requestRefresh=d.requestRefresh,
                 alwaysForce=d.alwaysForce,diagnosticsEnabled=d.diagnosticsEnabled,lastTestSeconds=d.lastTestSeconds))
         } else saveDraft()
     }
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString("visible",visible.text.toString()); outState.putString("black",black.text.toString()); outState.putBoolean("global",global.isChecked)
+        outState.putString("sequence",sequence?.text?.toString());outState.putString("visible",visible.text.toString()); outState.putString("black",black.text.toString()); outState.putBoolean("global",global.isChecked)
         outState.putBoolean("excluded",exclusion.isChecked); outState.putInt("preset",preset.selectedItemPosition); super.onSaveInstanceState(outState)
         outState.putBoolean("visibleError",visible.error != null); outState.putBoolean("blackError",black.error != null)
     }

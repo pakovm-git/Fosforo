@@ -37,6 +37,7 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
     private lateinit var windows: WindowManager
     private lateinit var displays: DisplayManager
     private lateinit var monitor: ForegroundAppMonitor
+    private var effects:dev.pako.bfi.effects.EffectsSession?=null
     private var view: SurfaceView? = null
     private var surfaceCallback: SurfaceHolder.Callback? = null
     private var renderer: OverlayRenderer? = null
@@ -82,7 +83,7 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                Intent.ACTION_SCREEN_OFF -> { runtime.appChanged(null,true); updateMonitoring() }
+                Intent.ACTION_SCREEN_OFF -> { effects?.locked(); runtime.appChanged(null,true); updateMonitoring() }
                 Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> { runtime.appChanged(null,true); updateMonitoring() }
             }
         }
@@ -107,7 +108,7 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
             val initialDisplay=runtime.display()
             rate=initialDisplay?.refreshRate?.toDouble() ?: 0.0; modeId=initialDisplay?.mode?.modeId ?: 0; rotation=initialDisplay?.rotation ?: 0
             val notification=makeNotification()
-            if (Build.VERSION.SDK_INT >= 34) startForeground(NOTIFICATION_ID,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            if (Build.VERSION.SDK_INT >= 34) startForeground(NOTIFICATION_ID,notification,ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or if(runtime.state.settings.crtEnabled) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION else 0)
             else startForeground(NOTIFICATION_ID,notification)
             if (!watching) {
                 displays.registerDisplayListener(this,main)
@@ -115,17 +116,23 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
                 if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenReceiver,filter,RECEIVER_NOT_EXPORTED) else registerReceiver(screenReceiver,filter)
                 watching=true
             }
+            if(runtime.usesModernOutput && effects==null) effects=dev.pako.bfi.effects.EffectsSession(this,runtime,main)
             if (!runtime.attach(this)) endSession()
             updateMonitoring()
             if (runtime.state.mode is SessionMode.Timed) { main.removeCallbacks(countdown); main.post(countdown) }
         } catch (_: RuntimeException) { runtime.failure(runtime.state.epoch,Reason.SERVICE,false); endSession() }
         return START_NOT_STICKY
     }
+    fun syncEffects() { effects?.sync() }
     fun updateMonitoring() {
         if (ending) return
         if (runtime.state.userEnabled && runtime.awake() && !runtime.controlsVisible && runtime.state.settings.needsAppIdentity) monitor.start() else monitor.stop()
     }
     fun requestRender(epoch: Epoch) {
+        if(runtime.usesModernOutput){
+            if(runtime.accepts(epoch) && !ending){renderEpoch=epoch;effects?.render(epoch)}
+            return
+        }
         if (!runtime.accepts(epoch) || ending || epoch == renderEpoch || epoch == pendingEpoch) return
         removeRender()
         if (!runtime.accepts(epoch)) return
@@ -202,6 +209,7 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
     }
     /** Release resources immediately, without waiting on a potentially stuck rendering thread. */
     fun removeRender() {
+        effects?.pause()
         pendingEpoch=null
         waitWorker?.let { main.removeCallbacks(it) }; waitWorker=null
         settle?.let { main.removeCallbacks(it) }; settle=null; settling=false
@@ -244,7 +252,7 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
     }
     fun endSession() {
         if (ending) return
-        ending=true; removeRender(); monitor.stop(); main.removeCallbacks(countdown)
+        ending=true; removeRender(); effects?.close();effects=null; monitor.stop(); main.removeCallbacks(countdown)
         boundEpoch?.let { epoch ->
             if (epoch.session == runtime.state.session && lastRecordedReason != runtime.state.reason) record(lastSummary ?: emptySummary,lastEpoch ?: epoch)
         }
@@ -253,6 +261,7 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
     }
     fun stateChanged() {
         if (ending || !runtime.state.userEnabled) return
+        effects?.sync()
         val s=runtime.state
         val seconds=s.deadlineUptimeMillis?.let { ((it-SystemClock.uptimeMillis()+999)/1000).coerceAtLeast(0) }
         val key="${s.phase}|${s.reason}|${s.mode}|$seconds"
@@ -278,6 +287,12 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
     override fun onDisplayChanged(displayId: Int) {
         if (displayId != Display.DEFAULT_DISPLAY || ending || !runtime.state.userEnabled) return
         if (!runtime.awake()) { runtime.reconcile(); updateMonitoring(); return }
+        if(runtime.usesModernOutput){
+            val current=runtime.display()
+            effects?.displayChanged(current?.rotation!=rotation)
+            rotation=current?.rotation?:rotation
+            runtime.reconcile();return
+        }
         if (settling) {
             val actual=runtime.display()
             if (actual?.mode?.modeId == requestedModeId && abs(actual.refreshRate-requestedHz) <= 0.1) settle?.run()

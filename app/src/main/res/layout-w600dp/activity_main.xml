@@ -10,7 +10,7 @@
     </ScrollView>
     <RelativeLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="0.64" android:background="@drawable/card" android:padding="16dp">
       <TextView android:id="@+id/choose_heading_wide" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/choose_action" android:textSize="20sp" android:textColor="@color/bfi_text_primary" android:layout_marginBottom="8dp" />
-      <Button android:id="@+id/main_action" style="@style/PrimaryAction" android:layout_below="@id/choose_heading_wide" android:text="@string/turn_on" android:layout_marginBottom="10dp" />
+      <Button android:id="@+id/main_action" style="@style/PrimaryAction" android:layout_below="@id/choose_heading_wide" android:text="@string/start_effects" android:layout_marginBottom="10dp" />
       <ScrollView android:id="@+id/actions_scroll_wide" android:layout_below="@id/main_action" android:layout_width="match_parent" android:layout_height="match_parent" android:scrollbarStyle="outsideInset">
         <include layout="@layout/home_actions" />
       </ScrollView>

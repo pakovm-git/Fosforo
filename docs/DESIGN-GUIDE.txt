@@ -1,3 +1,5 @@
+BFI 0.7.0 update: normal Home and Settings previews and the local decorative BFI mask are removed. Effects are selected by separate BFI/CRT switches and one Start/Stop. On Android 13+ the real effects also apply over the app’s controls; Test effects offers a separate explicitly started motion test. On older Android, output pauses over controls. CRT settings use existing bounded cards, theme tokens, autosave and top-right reset. Sections describing MotionPreview below are historical implementation notes, superseded by this paragraph. See CRT-INTEGRATION.md.
+
 BFI native Android design guide — version 0.6
 
 Read this guide before changing the UI. Prefer the existing shared components and resource tokens. Keep session safety and persistence behavior intact while reorganizing presentation.
@@ -40,7 +42,7 @@ Valid settings changes autosave through the existing SettingsRepository/Settings
 
 Restore defaults is scoped, top-right and confirmed; preserve permission grants and first-use acknowledgment. Apps and per-app rules retain their existing semantics. Keep Off/On intent separate from preferred scope: a tile tap toggles preferred scope versus Off, and long press opens the explicit mode menu. Opening/rotating screens or granting setup access must never activate BFI.
 
-Keep a Stop action reachable while enabled. The app's own controls stay touchable through the native in-window decoration. Do not weaken Android overlay security, reduce real black-frame opacity, auto-start after process death/reboot, or alter timed deadlines to make a UI demo work.
+Keep a Stop action reachable while enabled. On Android 13+ the actual accessibility overlay remains active over the app’s controls and allows touch through. Do not weaken Android overlay security, reduce real black-frame opacity, auto-start after process death/reboot, or alter timed deadlines to make a UI demo work.
 
 6. Required review for UI changes
 

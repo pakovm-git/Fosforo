@@ -1,0 +1,19 @@
+Newpixie CRT frame texture
+Copyright (c) 2016 Mattias Gustavsson
+
+Source: https://github.com/mattiasgustavsson/crtview/blob/4fe66d98bfbb2d343239eb435cc749589b75a907/source/crt_frame.h
+Original file: source/crt_frame.h
+Source commit: 4fe66d98bfbb2d343239eb435cc749589b75a907
+Source SHA-256: cd4cd08fa6c4af1965e312a7a789d87905f029fc0f4690ecf54b56f20ed1fd16
+
+The original source offers MIT OR Unlicense. This distribution selects MIT.
+The complete original dual-license notice is in LICENSE-Mattias-Gustavsson.txt.
+
+Modification: decoded the original author's RLE bitmap to a 1024 x 1024
+8-bit grayscale-plus-alpha PNG. The bitmap pixels are unchanged from the
+original author's decoder. This generated image replaces the unannotated
+PNG copy from the Libretro Newpixie preset, with the same visible pixels
+and alpha (only RGB values of fully transparent pixels differ).
+
+The shader pass files retain their own original MIT/Unlicense notices and
+Mattias Gustavsson / hunterk credits; this frame notice does not replace them.

@@ -5,6 +5,8 @@ import dev.pako.bfi.model.*
 /** Android-free validation; enabled intent and resource identifiers have no persisted keys. */
 object SettingsCodec {
     fun encode(s: BfiSettings): Map<String, Any> = mapOf(
+        "useBfi" to s.bfiEnabled, "useCrt" to s.crtEnabled, "shaderId" to s.shaderId,
+        "shaderValues" to s.shaderValues.map { (key,value) -> "$key|$value" }.toSet(), "multiStepPattern" to s.multiStepPattern,
         "schema" to s.schemaVersion, "visible" to s.globalPattern.visibleSlots, "black" to s.globalPattern.blackSlots,
         "activation" to s.activationMode.name, "included" to s.includedPackages.toSet(), "excluded" to s.excludedPackages.toSet(),
         "overrides" to s.overrides.map { (pkg, p) -> "$pkg|${p.visibleSlots}|${p.blackSlots}" }.toSet(),
@@ -19,6 +21,11 @@ object SettingsCodec {
         return raw.map { require(it is String && packageValid(it)); it }.toSet()
     }
     fun packageValid(pkg: String) = pkg.isNotBlank() && pkg.length <= 255 && pkg.none { it == '|' || it.isWhitespace() }
+    private fun decodeShaderValues(raw:Set<*>):Map<String,Float> {
+        val pairs=raw.map { value -> require(value is String); val parts=value.split('|'); require(parts.size==2); parts[0] to parts[1].toFloat() }
+        require(pairs.map{it.first}.distinct().size==pairs.size)
+        return pairs.toMap()
+    }
     fun decode(data: Map<String, Any>): BfiSettings {
         require(value(data, "schema", 1) == 1) { "Unsupported settings schema" }
         val overrides = value<Set<*>>(data, "overrides", emptySet<Any>()).map { raw ->
@@ -29,6 +36,9 @@ object SettingsCodec {
         require(overrides.map { it.first }.distinct().size == overrides.size)
         val target = value(data, "target", "maximum")
         return BfiSettings(
+            bfiEnabled=value(data,"useBfi",true), crtEnabled=value(data,"useCrt",false),
+            shaderId=value(data,"shaderId","lottes"), multiStepPattern=value(data,"multiStepPattern",""),
+            shaderValues=decodeShaderValues(value<Set<*>>(data,"shaderValues",emptySet<Any>())),
             globalPattern = BfiPattern(value(data, "visible", 1), value(data, "black", 1)),
             activationMode = ActivationMode.valueOf(value(data, "activation", ActivationMode.ALL_APPS.name)),
             includedPackages = packages(data, "included"), excludedPackages = packages(data, "excluded"), overrides = overrides.toMap(),

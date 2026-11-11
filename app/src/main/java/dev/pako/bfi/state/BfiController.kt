@@ -7,12 +7,13 @@ class BfiController {
     var state = BfiState()
         private set
     fun accepts(epoch: Epoch) = state.userEnabled && state.epoch == epoch
-    fun start(settings: BfiSettings, mode: SessionMode, now: Long, problem: Reason? = null): List<Effect> {
+    fun start(settings: BfiSettings, mode: SessionMode, now: Long, problem: Reason? = null,deadline:Long?=null): List<Effect> {
         if (state.userEnabled) return emptyList()
         if (problem != null) return stop(problem, Phase.BLOCKED)
+        if(deadline!=null && (mode !is SessionMode.Timed || now>=deadline))return stop(Reason.TIMEOUT)
         state = BfiState(true, Phase.STARTING, Reason.READY, mode, state.session + 1, state.generation + 1,
             settings, settings.globalPattern, startedUptimeMillis = now,
-            deadlineUptimeMillis = (mode as? SessionMode.Timed)?.let { now + it.seconds * 1000L })
+            deadlineUptimeMillis = (mode as? SessionMode.Timed)?.let { deadline ?: now + it.seconds * 1000L })
         return listOfNotNull(Effect.Render(state.epoch), state.deadlineUptimeMillis?.let { Effect.Timeout(state.session, it) })
     }
     fun stop(reason: Reason = Reason.MANUAL, phase: Phase = Phase.DISABLED): List<Effect> {

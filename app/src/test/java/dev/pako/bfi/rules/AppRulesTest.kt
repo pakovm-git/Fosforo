@@ -6,6 +6,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AppRulesTest {
+    @Test fun modernControlsUseGlobalPatternWhileExternalAppRulesStillApply() {
+        val s=BfiSettings(activationMode=ActivationMode.SELECTED_APPS,includedPackages=setOf("chosen"),globalPattern=BfiPattern(2,1))
+        assertEquals(s.globalPattern,AppRuleResolver.resolveOutput(s,null,true,false,true).pattern)
+        assertEquals(Reason.CONTROLS,AppRuleResolver.resolveOutput(s,null,true,false,false).reason)
+        assertEquals(Reason.UNKNOWN_APP,AppRuleResolver.resolveOutput(s,null,false,false,true).reason)
+        assertNull(AppRuleResolver.resolveOutput(s,"other",false,false,true).pattern)
+        assertEquals(s.globalPattern,AppRuleResolver.resolveOutput(s,"chosen",false,false,true).pattern)
+    }
     @Test fun unrestrictedAllAppsNeedsNoIdentity() { assertFalse(BfiSettings().needsAppIdentity); assertEquals(BfiPattern(),AppRuleResolver.resolve(BfiSettings(),null).pattern) }
     @Test fun exclusionWinsOverInclusionAndOverride() {
         val s=BfiSettings(activationMode=ActivationMode.SELECTED_APPS,includedPackages=setOf("pkg"),excludedPackages=setOf("pkg"),overrides=mapOf("pkg" to BfiPattern(3,2)))

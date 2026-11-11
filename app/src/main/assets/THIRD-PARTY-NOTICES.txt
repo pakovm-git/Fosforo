@@ -1,0 +1,100 @@
+BFI app code: MIT, Copyright PakoVM. Third-party components retain their own terms.
+
+CRT Lottes: Timothy Lottes; public domain as declared in the original shader header.
+Source: libretro/slang-shaders, commit 2345ee91602a7404d3a1a6a5df6108d7305fdad4, crt/shaders/crt-lottes.slang.
+
+Newpixie CRT: Copyright (c) 2016 Mattias Gustavsson. MIT OR Unlicense; this distribution selects MIT. Slang adaptation by hunterk. Original notices retained in each shader source.
+Source: libretro/slang-shaders, commit 2345ee91602a7404d3a1a6a5df6108d7305fdad4, crt/shaders/newpixie/*.slang.
+
+Newpixie CRT frame texture
+Copyright (c) 2016 Mattias Gustavsson
+
+Source: https://github.com/mattiasgustavsson/crtview/blob/4fe66d98bfbb2d343239eb435cc749589b75a907/source/crt_frame.h
+Original file: source/crt_frame.h
+Source commit: 4fe66d98bfbb2d343239eb435cc749589b75a907
+Source SHA-256: cd4cd08fa6c4af1965e312a7a789d87905f029fc0f4690ecf54b56f20ed1fd16
+
+The original source offers MIT OR Unlicense. This distribution selects MIT.
+The complete original dual-license notice is in LICENSE-Mattias-Gustavsson.txt.
+
+Modification: decoded the original author's RLE bitmap to a 1024 x 1024
+8-bit grayscale-plus-alpha PNG. The bitmap pixels are unchanged from the
+original author's decoder. This generated image replaces the unannotated
+PNG copy from the Libretro Newpixie preset, with the same visible pixels
+and alpha (only RGB values of fully transparent pixels differ).
+
+The shader pass files retain their own original MIT/Unlicense notices and
+Mattias Gustavsson / hunterk credits; this frame notice does not replace them.
+
+/*
+------------------------------------------------------------------------------
+
+This software is available under 2 licenses - you may choose the one you like.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE A - MIT License
+
+Copyright (c) 2016 Mattias Gustavsson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of 
+this software and associated documentation files (the "Software"), to deal in 
+the Software without restriction, including without limitation the rights to 
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
+of the Software, and to permit persons to whom the Software is furnished to do 
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
+
+------------------------------------------------------------------------------
+
+ALTERNATIVE B - Public Domain (www.unlicense.org)
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this 
+software, either in source code form or as a compiled binary, for any purpose, 
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this 
+software dedicate any and all copyright interest in the software to the public 
+domain. We make this dedication for the benefit of the public at large and to 
+the detriment of our heirs and successors. We intend this dedication to be an 
+overt act of relinquishment in perpetuity of all present and future rights to 
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN 
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+------------------------------------------------------------------------------
+*/
+
+HiddenApiBypass 6.1: LSPosed contributors, Apache License 2.0.
+https://github.com/LSPosed/AndroidHiddenApiBypass
+AndroidX DataStore and Kotlin coroutines retain their upstream Apache 2.0 notices.
+Capture exclusion uses a private API only on BFI's own output layer; no root or global exemptions.
+
+
+zfast CRT Composite: Copyright (C) 2017 Greg Hogan (SoltanGris42); composite additions credited to metallic77.
+CRT Geom: Copyright (C) 2010-2012 cgwg, Themaister and DOLLS (as credited in the source).
+Both shaders are GNU GPL version 2 or later, as declared in their unchanged source headers.
+Source: https://github.com/libretro/slang-shaders/tree/2345ee91602a7404d3a1a6a5df6108d7305fdad4/crt
+Complete corresponding source is bundled under shaders/upstream/slang/crt/.
+Full GPL version 2 text: shaders/GPL-2.0.txt. These shader assets retain their own licenses; BFI's MIT license does not replace them.
+
+Optional Libretro source library: https://github.com/libretro/slang-shaders
+Downloaded only on request, directly from GitHub at an immutable source revision.
+Files retain their original notices and differing license terms. The library is not relicensed as MIT.

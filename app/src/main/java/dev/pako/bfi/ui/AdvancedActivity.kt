@@ -35,6 +35,7 @@ class AdvancedActivity : ScreenActivity(),DisplayManager.DisplayListener {
     private lateinit var test: Button
     private lateinit var usageButton: Button
     private var pendingReport: String?=null
+    private var pendingCapture: StartRequest?=null
     private val controls=mutableListOf<View>()
     private val tick=object : Runnable {
         override fun run() {
@@ -70,7 +71,8 @@ class AdvancedActivity : ScreenActivity(),DisplayManager.DisplayListener {
         }
         val permissions=column(panels.controls); section(R.string.permissions_section,permissions)
         permissionStatus=text(R.string.loading,permissions,true)
-        button(R.string.overlay_permission,permissions) { openSettings(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName"))) }
+        if(runtime.usesModernOutput)button(R.string.accessibility_permission,permissions){openSettings(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))}
+        else button(R.string.overlay_permission,permissions) { openSettings(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName"))) }
         button(R.string.notification_permission,permissions) {
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),1)
             else openSettings(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,packageName))
@@ -144,8 +146,13 @@ class AdvancedActivity : ScreenActivity(),DisplayManager.DisplayListener {
     private fun runTest() {
         if (runtime.state.userEnabled || repository.writing) return
         val s=draft() ?: run { duration.error=getString(R.string.duration_error,TrialConfig.MIN_SECONDS,TrialConfig.MAX_SECONDS); return }
-        if (runtime.readiness() != null) { startActivity(Intent(this,MainActivity::class.java)); return }
-        runtime.start(SessionMode.Timed(s.lastTestSeconds))
+        val problem=runtime.readiness()
+        if (problem != null && problem != Reason.CAPTURE) { startActivity(Intent(this,MainActivity::class.java)); return }
+        val request=runtime.prepareStart(SessionMode.Timed(s.lastTestSeconds))
+        if (problem == Reason.CAPTURE) {
+            pendingCapture=request
+            startActivityForResult(getSystemService(android.media.projection.MediaProjectionManager::class.java).createScreenCaptureIntent(),203)
+        } else runtime.start(request)
     }
     override fun refreshScreen() {
         initialize(); val editable=initialized && repository.settings != null
@@ -162,7 +169,7 @@ class AdvancedActivity : ScreenActivity(),DisplayManager.DisplayListener {
         counters.visibility=if (repository.settings?.diagnosticsEnabled == true) View.VISIBLE else View.GONE
         counters.text=summary?.let { formatSummary(it) } ?: getString(R.string.diagnostics_none)
         permissionStatus.text=getString(R.string.permission_summary,
-            getString(if (Settings.canDrawOverlays(this)) R.string.overlay_ready else R.string.overlay_missing),
+            if(runtime.usesModernOutput)getString(if(dev.pako.bfi.effects.EffectAccessibilityService.instance!=null)R.string.accessibility_ready else R.string.reason_accessibility) else getString(if (Settings.canDrawOverlays(this)) R.string.overlay_ready else R.string.overlay_missing),
             getString(if (ExperimentService.notificationsReady(this)) R.string.notifications_ready else R.string.notifications_missing),
             getString(if (repository.settings?.needsAppIdentity != true) R.string.usage_not_required else if (ForegroundAppMonitor.hasAccess(this)) R.string.usage_ready else R.string.usage_missing))
     }
@@ -191,6 +198,11 @@ class AdvancedActivity : ScreenActivity(),DisplayManager.DisplayListener {
     @Deprecated("Platform document-picker result bridge")
     override fun onActivityResult(requestCode: Int,resultCode: Int,data: Intent?) {
         super.onActivityResult(requestCode,resultCode,data)
+        if (requestCode == 203) {
+            val request=pendingCapture;pendingCapture=null
+            if (request != null && resultCode == RESULT_OK && data != null && runtime.accepts(request)) runtime.start(request,data)
+            return
+        }
         if (requestCode != 74 || resultCode != RESULT_OK) return
         val uri=data?.data ?: return; val report=pendingReport ?: return; pendingReport=null
         repository.scope.launch {

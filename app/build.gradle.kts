@@ -8,8 +8,8 @@ android {
         applicationId = "dev.pako.bfi"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.6.4"
+        versionCode = 14
+        versionName = "0.7.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -19,6 +19,7 @@ android {
 }
 
 dependencies {
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
     implementation("androidx.datastore:datastore-preferences:1.2.1")
     testImplementation("junit:junit:4.13.2")
 }

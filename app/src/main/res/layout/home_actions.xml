@@ -1,5 +1,11 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-  <Button android:id="@+id/pattern_action" style="@style/Action" android:text="@string/pattern_settings" android:layout_marginBottom="10dp" />
-  <Button android:id="@+id/apps_action" style="@style/Action" android:text="@string/apps_title" android:layout_marginBottom="10dp" />
-  <TextView style="@style/Secondary" android:text="@string/input_notice" android:textColor="@color/bfi_notice" />
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:baselineAligned="false">
+    <Switch android:id="@+id/bfi_switch" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/bfi_effect" android:textColor="@color/bfi_text_primary" android:saveEnabled="false" android:layout_marginEnd="16dp" />
+    <Switch android:id="@+id/crt_switch" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/crt_effect" android:textColor="@color/bfi_text_primary" android:saveEnabled="false" />
+  </LinearLayout>
+  <Button android:id="@+id/pattern_action" style="@style/Action" android:text="@string/pattern_settings" android:layout_marginBottom="6dp" />
+  <Button android:id="@+id/apps_action" style="@style/Action" android:text="@string/apps_title" android:layout_marginBottom="6dp" />
+  <Button android:id="@+id/crt_action" style="@style/Action" android:text="@string/crt_settings" android:layout_marginBottom="6dp" />
+  <Button android:id="@+id/test_action" style="@style/Action" android:text="@string/test_effects" android:layout_marginBottom="6dp" />
+  <TextView android:id="@+id/input_notice" style="@style/Secondary" android:text="@string/input_notice" android:textColor="@color/bfi_notice" />
 </LinearLayout>
