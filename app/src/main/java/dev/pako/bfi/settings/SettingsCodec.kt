@@ -5,10 +5,13 @@ import dev.pako.bfi.model.*
 /** Android-free validation; enabled intent and resource identifiers have no persisted keys. */
 object SettingsCodec {
     fun encode(s: BfiSettings): Map<String, Any> = mapOf(
-        "useBfi" to s.bfiEnabled, "useCrt" to s.crtEnabled, "shaderId" to s.shaderId,
+        "favouriteShaders" to s.favouriteShaders.toSet(), "useBfi" to s.bfiEnabled, "useCrt" to s.crtEnabled, "shaderId" to s.shaderId,
         "shaderValues" to s.shaderValues.map { (key,value) -> "$key|$value" }.toSet(), "multiStepPattern" to s.multiStepPattern,
         "schema" to s.schemaVersion, "visible" to s.globalPattern.visibleSlots, "black" to s.globalPattern.blackSlots,
         "activation" to s.activationMode.name, "included" to s.includedPackages.toSet(), "excluded" to s.excludedPackages.toSet(),
+        "shaderOverrides" to s.shaderOverrides.map { (pkg,shader) ->
+            (listOf(pkg,shader.id)+shader.values.flatMap { (key,value) -> listOf(key,value.toString()) }).joinToString("|")
+        }.toSet(),
         "overrides" to s.overrides.map { (pkg, p) -> "$pkg|${p.visibleSlots}|${p.blackSlots}" }.toSet(),
         "target" to when (val target = s.refreshTarget) { RefreshTarget.Maximum -> "maximum"; is RefreshTarget.Numeric -> target.hz.toString() },
         "request" to s.requestRefresh, "force" to s.alwaysForce, "resume" to s.resumeAfterUnlock,
@@ -34,14 +37,23 @@ object SettingsCodec {
             parts[0] to BfiPattern(parts[1].toInt(), parts[2].toInt())
         }
         require(overrides.map { it.first }.distinct().size == overrides.size)
+        val shaders=value<Set<*>>(data,"shaderOverrides",emptySet<Any>()).map { raw ->
+            require(raw is String)
+            val parts=raw.split('|');require(parts.size>=2 && parts.size%2==0 && packageValid(parts[0]))
+            val values=parts.drop(2).chunked(2).map { it[0] to it[1].toFloat() }
+            require(values.map { it.first }.distinct().size==values.size)
+            parts[0] to AppShader(parts[1],values.toMap())
+        }
+        require(shaders.map { it.first }.distinct().size==shaders.size)
         val target = value(data, "target", "maximum")
         return BfiSettings(
             bfiEnabled=value(data,"useBfi",true), crtEnabled=value(data,"useCrt",false),
+            favouriteShaders=value<Set<*>>(data,"favouriteShaders",emptySet<Any>()).map{require(it is String);it}.toSet(),
             shaderId=value(data,"shaderId","lottes"), multiStepPattern=value(data,"multiStepPattern",""),
             shaderValues=decodeShaderValues(value<Set<*>>(data,"shaderValues",emptySet<Any>())),
             globalPattern = BfiPattern(value(data, "visible", 1), value(data, "black", 1)),
             activationMode = ActivationMode.valueOf(value(data, "activation", ActivationMode.ALL_APPS.name)),
-            includedPackages = packages(data, "included"), excludedPackages = packages(data, "excluded"), overrides = overrides.toMap(),
+            includedPackages = packages(data, "included"), excludedPackages = packages(data, "excluded"), overrides = overrides.toMap(), shaderOverrides=shaders.toMap(),
             refreshTarget = if (target == "maximum") RefreshTarget.Maximum else RefreshTarget.Numeric(target.toDouble()),
             requestRefresh = value(data, "request", false), alwaysForce = value(data, "force", false), resumeAfterUnlock = value(data, "resume", true),
             diagnosticsEnabled = value(data, "diagnostics", false), lastTestSeconds = value(data, "testSeconds", 30), acceptedNoticeVersion = value(data, "notice", 0)

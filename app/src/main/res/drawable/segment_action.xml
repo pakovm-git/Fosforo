@@ -1,0 +1,6 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+<item android:state_checked="true" android:state_focused="true"><inset android:insetLeft="2dp" android:insetRight="2dp" android:insetTop="8dp" android:insetBottom="8dp"><shape><solid android:color="@color/bfi_selected"/><corners android:radius="7dp"/><stroke android:width="3dp" android:color="@color/bfi_focus"/></shape></inset></item>
+<item android:state_checked="true"><inset android:insetLeft="2dp" android:insetRight="2dp" android:insetTop="8dp" android:insetBottom="8dp"><shape><solid android:color="@color/bfi_selected"/><corners android:radius="7dp"/><stroke android:width="2dp" android:color="@color/bfi_selected_outline"/></shape></inset></item>
+<item android:state_focused="true"><inset android:insetLeft="2dp" android:insetRight="2dp" android:insetTop="8dp" android:insetBottom="8dp"><shape><solid android:color="@color/bfi_surface_secondary"/><corners android:radius="7dp"/><stroke android:width="3dp" android:color="@color/bfi_focus"/></shape></inset></item>
+<item><shape><solid android:color="@android:color/transparent"/></shape></item>
+</selector>

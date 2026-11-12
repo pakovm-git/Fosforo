@@ -109,13 +109,10 @@ class BfiRuntime(private val context: Context, val main: Handler, val repository
     }
     fun readiness(s: BfiSettings? = repository.settings, requireSaved: Boolean = true): Reason? {
         if (s == null || (requireSaved && repository.writing)) return Reason.SETTINGS
-        if (s.acceptedNoticeVersion < 1) return Reason.NOTICE
         if (!s.bfiEnabled && !s.crtEnabled) return Reason.NO_EFFECT
         if (s.crtEnabled && !usesModernOutput) return Reason.UNSUPPORTED
-        if (usesModernOutput && dev.pako.bfi.effects.EffectAccessibilityService.instance==null) return Reason.ACCESSIBILITY
+        outputAccessProblem()?.let { return it }
         if (s.crtEnabled && (!crtNeedsRestart || !s.bfiEnabled) && captureConsent==null && !captureActive) return Reason.CAPTURE
-        if (!usesModernOutput && !Settings.canDrawOverlays(context)) return Reason.OVERLAY
-        if (!ExperimentService.notificationsReady(context)) return Reason.NOTIFICATION
         if (s.needsAppIdentity && !ForegroundAppMonitor.hasAccess(context)) return Reason.USAGE
         if (s.activationMode == ActivationMode.SELECTED_APPS && s.includedPackages.isEmpty()) return Reason.EMPTY_SELECTED
         val display = display() ?: return Reason.NO_DISPLAY
@@ -124,6 +121,9 @@ class BfiRuntime(private val context: Context, val main: Handler, val repository
         if (!rate.isFinite() || (s.bfiEnabled && rate < 100.0)) return Reason.LOW_RATE
         return null
     }
+    fun outputAccessProblem():Reason? = outputPermissionProblem(usesModernOutput,
+        dev.pako.bfi.effects.EffectAccessibilityService.instance!=null,
+        !usesModernOutput && Settings.canDrawOverlays(context),ExperimentService.notificationsReady(context))
     fun start(mode: SessionMode = SessionMode.Continuous, consent:Intent?=null,deadline:Long?=null) {
         userCommand++
         if (state.userEnabled) return

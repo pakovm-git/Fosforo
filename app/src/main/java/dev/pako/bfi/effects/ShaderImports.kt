@@ -11,6 +11,7 @@ import java.util.zip.ZipFile
 /** Imports only a user-selected local package; paths never escape its private directory. */
 object ShaderImports {
     private fun root(context:Context)=File(context.filesDir,"shader-imports")
+    internal fun deleteAll(context:Context){val folder=root(context);check(!folder.exists() || folder.deleteRecursively()){"Could not remove imported shaders"}}
     fun choices(context:Context):List<ShaderChoice> = root(context).listFiles().orEmpty().filter{it.name.matches(Regex("[0-9a-f]{24}"))}.mapNotNull { dir ->
         runCatching {
             val meta=Properties().apply{File(dir,"meta.properties").inputStream().use{load(it)}}
@@ -49,11 +50,21 @@ object ShaderImports {
         digest.update(preset.toByteArray())
         val id=digest.digest().joinToString(""){"%02x".format(it)}.take(24)
         val root=root(context).apply{mkdirs()};val destination=File(root,id)
-        if(destination.isDirectory)return choices(context).first{it.id=="import_$id"}
+        if(destination.isDirectory){
+            val choice=choices(context).first{it.id=="import_$id"}
+            ShaderProbe(context).use{it.check(ShaderCatalog.load(context,choice.id))}
+            return choice
+        }
         require(root.listFiles().orEmpty().count{it.isDirectory}<32){"Import library is full (32 packages)"}
         val staging=File(root,"pending-$id").apply{deleteRecursively();mkdirs()}
         try {
             val choice=archive.extract(id,preset,File(staging,"data"))
+            var budget=8*1024*1024
+            val definition=ShaderCatalog.loadChoice(choice){path->
+                val bytes=File(staging,"data/"+path.split('/',limit=3)[2]).inputStream().use{it.readNBytesBounded(2*1024*1024)}
+                budget-=bytes.size;require(budget>=0){"Shader sources expand beyond 8 MiB"};bytes.toString(Charsets.UTF_8)
+            }
+            ShaderProbe(context).use{it.check(definition){path->File(staging,"data/"+path.split('/',limit=3)[2]).inputStream()}}
             Properties().apply{setProperty("preset",preset);setProperty("label",choice.label)}.also{properties->File(staging,"meta.properties").outputStream().use{properties.store(it,"Local shader import")}}
             check(staging.renameTo(destination)){"Could not save shader import"}
             return choice

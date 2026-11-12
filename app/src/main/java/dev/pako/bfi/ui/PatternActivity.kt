@@ -10,6 +10,7 @@ import dev.pako.bfi.*
 import dev.pako.bfi.model.*
 
 class PatternActivity : ScreenActivity() {
+    override val hasEffectsAction=true
     companion object { const val EXTRA_PACKAGE="package"; const val EXTRA_LABEL="label" }
     private var pkg: String?=null
     private var initialized=false
@@ -23,7 +24,11 @@ class PatternActivity : ScreenActivity() {
     private lateinit var preview: PatternPreview
     private lateinit var fraction: TextView
     private lateinit var cadence: TextView
+    private lateinit var displayRate:TextView
+    private lateinit var motion:android.opengl.GLSurfaceView
+    private lateinit var motionRenderer:ShaderPreviewRenderer
     private var sequence:EditText?=null
+    private var steps:PatternSteps?=null
     private var baseline=BfiPattern()
     private var baselineGlobal=false
     private var baselineExcluded=false
@@ -33,12 +38,18 @@ class PatternActivity : ScreenActivity() {
         pkg=intent.getStringExtra(EXTRA_PACKAGE)
         title(if (pkg == null) getString(R.string.pattern_settings) else getString(R.string.app_pattern_title,intent.getStringExtra(EXTRA_LABEL) ?: pkg))
         // Replace the whole-page scroller with two bounded, independently scrolling cards.
-        val panels=boundedCards(); val left=panels.preview; val right=panels.controls
+        val panels=boundedCards()
+        val motionBody=group(R.string.bfi_effect,panels.preview)
+        motionRenderer=ShaderPreviewRenderer(applicationContext,dev.pako.bfi.effects.ShaderState("lottes",emptyMap())){}
+        motionRenderer.useShader=false;motionRenderer.effectsEnabled=false;motionRenderer.frozenTime=1.2f
+        motion=android.opengl.GLSurfaceView(this).apply{setEGLContextClientVersion(3);setRenderer(motionRenderer);renderMode=android.opengl.GLSurfaceView.RENDERMODE_WHEN_DIRTY;contentDescription=getString(R.string.preview_fullscreen);setOnClickListener{startActivity(android.content.Intent(this@PatternActivity,TestEffectsActivity::class.java).putExtra("effect","bfi"))}}
+        motionBody.addView(motion,LinearLayout.LayoutParams(-1,dp(108)))
+        val left=group(R.string.active_pattern,panels.preview); val right=group(R.string.pattern_sequence,panels.controls)
         val compact=resources.configuration.screenWidthDp < 600
-        section(R.string.pattern_preview_short,left).apply { textSize=16f; (layoutParams as LinearLayout.LayoutParams).bottomMargin=dp(if(compact) 2 else 4) }
-        preview=PatternPreview(this); left.addView(preview,LinearLayout.LayoutParams(-1,dp(if(compact) 28 else 32)).apply { bottomMargin=dp(4) })
-        fraction=text(R.string.loading,left,true).apply { (layoutParams as LinearLayout.LayoutParams).bottomMargin=dp(2) }
-        cadence=text(R.string.nominal_notice,left,true).apply { (layoutParams as LinearLayout.LayoutParams).bottomMargin=0 }
+        preview=PatternPreview(this); left.addView(preview,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=dp(4) })
+        fraction=stat(R.string.stat_black,left)
+        displayRate=stat(R.string.stat_display,left)
+        cadence=stat(R.string.stat_cycle,left)
         val appOptions=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
         right.addView(appOptions,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=dp(4) })
         global=check(R.string.use_global,appOptions); exclusion=check(R.string.explicit_exclusion,appOptions)
@@ -74,27 +85,37 @@ class PatternActivity : ScreenActivity() {
         visible.addTextChangedListener(watcher); black.addTextChangedListener(watcher)
         global.setOnCheckedChangeListener { _,_ -> if (!changing && initialized) { updatePreview(); updateEditable(); saveDraft() } }
         exclusion.setOnCheckedChangeListener { _,_ -> if (!changing && initialized) saveDraft() }
-        if (pkg == null) findViewById<Button>(R.id.advanced_action).apply {
-            visibility=View.VISIBLE; setOnClickListener { startActivity(android.content.Intent(this@PatternActivity,AdvancedActivity::class.java)) }
-        }
+        val card=right.parent as LinearLayout
+        val heading=card.getChildAt(0) as TextView
+        card.removeView(heading)
+        (resetButton.parent as ViewGroup).removeView(resetButton)
+        val header=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setBackgroundResource(R.drawable.group_card_header);setPadding(0,dp(4),dp(8),dp(4))}
+        heading.background=null;header.addView(heading,LinearLayout.LayoutParams(0,-2,1f))
+        header.addView(resetButton,LinearLayout.LayoutParams(-2,dp(48)));card.addView(header,0)
         if(pkg==null){
-            section(R.string.multi_step_title,left)
-            text(R.string.multi_step_help,left,true)
+            right.removeAllViews()
+            text(R.string.multi_step_help,panels.controls,true).apply{setBackgroundResource(R.drawable.inset_card);setPadding(dp(10),dp(10),dp(10),dp(10))}
             sequence=EditText(this).apply {
-                hint="1, 1, 2, 1";setSingleLine(true);inputType=android.text.InputType.TYPE_CLASS_TEXT
                 setText(restored?.getString("sequence")?:repository.settings?.multiStepPattern.orEmpty())
-            }.also{left.addView(it,LinearLayout.LayoutParams(-1,-2))}
-            sequence!!.addTextChangedListener(object:TextWatcher {
-                override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int)=Unit
-                override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int)=Unit
-                override fun afterTextChanged(s:Editable?){
-                    val value=s.toString().trim();val settings=repository.settings?:return
-                    if(value.isEmpty() || dev.pako.bfi.effects.BfiPattern.parse(value)!=null){sequence!!.error=null;save(settings.copy(multiStepPattern=value))}
-                    else sequence!!.error=getString(R.string.multi_step_error)
-                }
-            })
+            }
+            val settings=repository.settings
+            val runs=dev.pako.bfi.effects.BfiPattern.parse(sequence!!.text.toString())?.runs
+                ?: listOf(settings?.globalPattern?.visibleSlots?:1,settings?.globalPattern?.blackSlots?:1)
+            val add=Button(ContextThemeWrapper(this,R.style.PreferenceAction),null,0).apply{id=R.id.add_pattern_pair;setText(R.string.add_pair_short);gravity=Gravity.CENTER;setCompoundDrawablesRelativeWithIntrinsicBounds(0,0,0,0)}
+            steps=PatternSteps(this,restored?.getStringArrayList("stepDrafts")?:runs.map{it.toString()},add){value->
+                sequence!!.setText(value)
+                repository.settings?.let{save(it.copy(multiStepPattern=value))}
+                updatePreview()
+            }.also{right.addView(it,LinearLayout.LayoutParams(-1,-2))}
+            right.addView(add,LinearLayout.LayoutParams(-1,dp(48)).apply{topMargin=dp(12)})
         }
         initialize()
+    }
+    private fun stat(label:Int,parent:LinearLayout):TextView {
+        val row=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL}
+        parent.addView(row,LinearLayout.LayoutParams(-1,-2).apply{topMargin=dp(8)})
+        row.addView(TextView(this).apply{setText(label);textSize=14f;setTextColor(getColor(R.color.bfi_text_secondary))},LinearLayout.LayoutParams(0,-2,1f))
+        return TextView(this).apply{textSize=14f;gravity=Gravity.END;setTextColor(getColor(R.color.bfi_text_primary));row.addView(this,LinearLayout.LayoutParams(-2,-2))}
     }
     private fun slotField(parent: LinearLayout,label: Int,minus: Int,plus: Int): EditText {
         val heading=text(label,parent).apply { textSize=16f; (layoutParams as LinearLayout.LayoutParams).bottomMargin=dp(4) }
@@ -117,7 +138,10 @@ class PatternActivity : ScreenActivity() {
         baseline=pkg?.let { settings.overrides[it] } ?: settings.globalPattern
         baselineGlobal=pkg != null && pkg !in settings.overrides; baselineExcluded=pkg in settings.excludedPackages
         changing=true
-        if(pkg==null && restored==null)sequence?.setText(settings.multiStepPattern)
+        if(pkg==null && restored==null){
+            sequence?.setText(settings.multiStepPattern)
+            steps?.replace(dev.pako.bfi.effects.BfiPattern.parse(settings.multiStepPattern)?.runs ?: listOf(baseline.visibleSlots,baseline.blackSlots))
+        }
         visible.setText(restored?.getString("visible") ?: UiText.integer(baseline.visibleSlots)); black.setText(restored?.getString("black") ?: UiText.integer(baseline.blackSlots))
         global.isChecked=restored?.getBoolean("global") ?: baselineGlobal; exclusion.isChecked=restored?.getBoolean("excluded") ?: baselineExcluded
         val p=parsed(); preset.setSelection(if (restored != null) restored!!.getInt("preset",0) else BfiPattern.presets.indexOf(p).let { if (it < 0) 0 else it+1 })
@@ -135,16 +159,36 @@ class PatternActivity : ScreenActivity() {
         if (black.text.toString().toIntOrNull() in 1..12) black.error=null
         val p=if (pkg != null && global.isChecked) repository.settings?.globalPattern else parsed()
         preview.pattern=p
-        fraction.text=p?.let { getString(R.string.black_fraction,UiText.fraction(it)) } ?: getString(R.string.slot_bounds)
+        if(pkg==null){
+            val runs=dev.pako.bfi.effects.BfiPattern.parse(sequence?.text.toString())?.runs ?: p?.let{listOf(it.visibleSlots,it.blackSlots)}
+            preview.runs=runs
+            if(runs!=null){
+                val total=runs.sum();val blackFrames=runs.filterIndexed{index,_->index%2==1}.sum()
+                fraction.text=getString(R.string.stat_percent,UiText.decimal(100.0*blackFrames/total))
+                val hz=runtime.display()?.refreshRate?.toDouble()
+                displayRate.text=if(hz!=null)getString(R.string.observed_mode,UiText.decimal(hz)) else getString(R.string.unknown_rate)
+                cadence.text=if(hz!=null)getString(R.string.stat_cycle_value,UiText.decimal(hz/total)) else getString(R.string.unknown_rate)
+                return
+            }
+        }
+        fraction.text=p?.let { UiText.fraction(it) } ?: getString(R.string.slot_bounds)
         val hz=runtime.display()?.refreshRate?.toDouble()
-        cadence.text=if (p != null && hz != null) getString(R.string.nominal_rate_compact,UiText.decimal(hz),UiText.decimal(p.cyclesPerSecond(hz))) else getString(R.string.unknown_rate)
+        displayRate.text=if(hz!=null)getString(R.string.observed_mode,UiText.decimal(hz)) else getString(R.string.unknown_rate)
+        cadence.text=if(p!=null && hz!=null)getString(R.string.stat_cycle_value,UiText.decimal(p.cyclesPerSecond(hz))) else getString(R.string.unknown_rate)
     }
     private fun updateEditable() {
         val enabled=initialized && repository.settings != null
         global.isEnabled=enabled; exclusion.isEnabled=enabled
         controls.forEach { it.isEnabled=enabled && !(pkg != null && global.isChecked) }
     }
-    override fun refreshScreen() { initialize(); updateEditable(); updatePreview() }
+    override fun onResume(){super.onResume();motion.onResume()}
+    override fun onPause(){motion.onPause();super.onPause()}
+    override fun refreshScreen() { initialize(); updateEditable(); updatePreview()
+        val settings=repository.settings
+        motionRenderer.blackPattern=if(pkg==null)dev.pako.bfi.effects.BfiPattern.parse(sequence?.text.toString())?:settings?.let{dev.pako.bfi.effects.BfiPattern.legacy(it.globalPattern.visibleSlots,it.globalPattern.blackSlots)} else parsed()?.let{dev.pako.bfi.effects.BfiPattern.legacy(it.visibleSlots,it.blackSlots)}
+        motionRenderer.hz=runtime.display()?.refreshRate?.toDouble()?:120.0
+        motionRenderer.effectsEnabled=false
+    }
     override fun saveDraft() {
         val settings=repository.settings ?: return
         if (!initialized || changing) return
@@ -162,47 +206,74 @@ class PatternActivity : ScreenActivity() {
             save(settings.copy(overrides=overrides.toMap(),excludedPackages=excluded.toSet()))
         }
     }
-    override val restoreMessage get()=if (pkg == null) R.string.restore_settings_confirm else R.string.restore_app_pattern_confirm
+    override val resetPrompt=R.string.reset_pattern_prompt
+    override val restoreMessage get()=if (pkg == null) R.string.restore_pattern_only_confirm else R.string.restore_app_pattern_confirm
     override fun restoreDefaults() {
         changing=true; visible.setText("1"); black.setText("1"); global.isChecked=pkg != null; exclusion.isChecked=false
         preset.setSelection(1); changing=false; visible.error=null; black.error=null
         updatePreview(); updateEditable()
         if (pkg == null) {
             val s=repository.settings ?: return; val d=BfiSettings()
-            sequence?.setText("")
-            save(s.copy(globalPattern=d.globalPattern,multiStepPattern="",refreshTarget=d.refreshTarget,requestRefresh=d.requestRefresh,
-                alwaysForce=d.alwaysForce,diagnosticsEnabled=d.diagnosticsEnabled,lastTestSeconds=d.lastTestSeconds))
+            sequence?.setText("");steps?.replace(listOf(1,1));updatePreview()
+            save(s.copy(globalPattern=d.globalPattern,multiStepPattern=""))
         } else saveDraft()
     }
     override fun onSaveInstanceState(outState: Bundle) {
+        steps?.let{outState.putStringArrayList("stepDrafts",it.snapshot())}
         outState.putString("sequence",sequence?.text?.toString());outState.putString("visible",visible.text.toString()); outState.putString("black",black.text.toString()); outState.putBoolean("global",global.isChecked)
         outState.putBoolean("excluded",exclusion.isChecked); outState.putInt("preset",preset.selectedItemPosition); super.onSaveInstanceState(outState)
         outState.putBoolean("visibleError",visible.error != null); outState.putBoolean("blackError",black.error != null)
     }
 }
 
-private class PatternPreview(context: Context) : View(context) {
-    private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
+internal class PatternPreview(context: Context) : View(context) {
+    var singleRow=false
+    var compactHeight=0
+    private val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{typeface=resources.getFont(R.font.jersey15)}
+    private var frames=emptyList<Boolean>()
+    var runs:List<Int>?=null
+        set(value){
+            field=value
+            frames=value?.flatMapIndexed { index,count -> List(count){index%2==1} }.orEmpty()
+            contentDescription=value?.mapIndexed{index,count->"${context.getString(if(index%2==0)R.string.visible_step else R.string.black_step)} $count"}?.joinToString(" → ")
+            requestLayout();invalidate()
+        }
     var pattern: BfiPattern?=null
         set(value) {
             field=value
+            runs=value?.let{listOf(it.visibleSlots,it.blackSlots)}
             contentDescription=value?.let { context.getString(R.string.pattern_preview_description,UiText.integer(it.visibleSlots),UiText.integer(it.blackSlots)) }
             invalidate()
         }
+    override fun onMeasure(widthMeasureSpec:Int,heightMeasureSpec:Int) {
+        val cell=if(singleRow&&compactHeight>0)compactHeight+4*resources.displayMetrics.density else 44*resources.displayMetrics.density
+        val measuredWidth=MeasureSpec.getSize(widthMeasureSpec)
+        val columns=if(singleRow)frames.size.coerceAtLeast(1) else (measuredWidth/cell).toInt().coerceAtLeast(1)
+        val rows=(frames.size.coerceAtLeast(2)+columns-1)/columns
+        val rowHeight=if(singleRow&&compactHeight>0)compactHeight.toFloat() else 48*resources.displayMetrics.density
+        setMeasuredDimension(if(singleRow)(frames.size*cell).toInt() else measuredWidth,resolveSize((rows*rowHeight).toInt(),heightMeasureSpec))
+    }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val p=pattern ?: return
-        val count=(p.totalSlots * 3).coerceAtMost(24)
-        val columns=count.coerceAtMost(12); val rows=(count+columns-1)/columns
-        val gap=4*resources.displayMetrics.density; val cellWidth=width.toFloat()/columns; val cellHeight=height.toFloat()/rows
+        if(frames.isEmpty())return
+        val count=frames.size
+        val cellHeight=if(singleRow&&compactHeight>0)compactHeight.toFloat() else 48*resources.displayMetrics.density
+        val cellWidth=if(singleRow&&compactHeight>0)cellHeight+4*resources.displayMetrics.density else 44*resources.displayMetrics.density
+        val columns=if(singleRow)frames.size.coerceAtLeast(1) else (width/cellWidth).toInt().coerceAtLeast(1)
+        val gap=(if(singleRow)1 else 4)*resources.displayMetrics.density
         val outline=context.getColor(R.color.bfi_focus)
-        for (i in 0 until count) {
+        val clip=canvas.clipBounds
+        val first=(clip.top/cellHeight).toInt().coerceAtLeast(0)*columns
+        val end=minOf(count,((clip.bottom/cellHeight).toInt()+1)*columns)
+        for (i in first until end) {
             val col=i%columns
             val x=(if (layoutDirection == LAYOUT_DIRECTION_RTL) columns-1-col else col)*cellWidth; val y=(i/columns)*cellHeight
-            paint.style=Paint.Style.FILL; paint.color=if (i%p.totalSlots < p.visibleSlots) Color.WHITE else Color.BLACK
-            canvas.drawRect(x+gap,y+gap,x+cellWidth-gap,y+cellHeight-gap,paint)
-            paint.style=Paint.Style.STROKE; paint.strokeWidth=resources.displayMetrics.density; paint.color=outline
-            canvas.drawRect(x+gap,y+gap,x+cellWidth-gap,y+cellHeight-gap,paint)
+            paint.style=Paint.Style.FILL; paint.color=if (frames[i]) Color.BLACK else Color.WHITE
+            canvas.drawRoundRect(x+gap,y+gap,x+cellWidth-gap,y+cellHeight-gap,(if(singleRow)3 else 6)*resources.displayMetrics.density,(if(singleRow)3 else 6)*resources.displayMetrics.density,paint)
+            paint.color=if(frames[i])Color.WHITE else Color.BLACK;paint.textSize=if(singleRow)cellHeight*.65f else 14*resources.displayMetrics.scaledDensity;paint.textAlign=Paint.Align.CENTER
+            canvas.drawText(if(frames[i])"B" else "V",x+cellWidth/2,y+cellHeight/2-(paint.ascent()+paint.descent())/2,paint)
+            paint.style=Paint.Style.STROKE; paint.strokeWidth=2*resources.displayMetrics.density; paint.color=outline
+            canvas.drawRoundRect(x+gap,y+gap,x+cellWidth-gap,y+cellHeight-gap,(if(singleRow)3 else 6)*resources.displayMetrics.density,(if(singleRow)3 else 6)*resources.displayMetrics.density,paint)
         }
     }
 }

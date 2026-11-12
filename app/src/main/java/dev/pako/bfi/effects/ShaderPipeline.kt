@@ -8,9 +8,12 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.roundToInt
 
-/** Runs only the bundled presets: real pass outputs, previous-frame feedback, LUTs and framebuffer formats. */
+internal class ShaderPassFailure(val path:String,cause:Exception):IllegalStateException(cause.message,cause)
+
+/** Runs the selected preset: real pass outputs, previous-frame feedback, LUTs and framebuffer formats. */
 class ShaderPipeline(private val context:Context,val definition:ShaderDefinition,
-                     private val originalW:Int,private val originalH:Int,private val viewportW:Int,private val viewportH:Int) {
+                     private val originalW:Int,private val originalH:Int,private val viewportW:Int,private val viewportH:Int,
+                     private val open:(String)->java.io.InputStream={ShaderCatalog.open(context,it)}) {
     private data class Image(val texture:Int,val fbo:Int,val w:Int,val h:Int)
     private data class Uniform(val name:String,val type:Int,val location:Int)
     private data class Pass(val program:Int,val uniforms:List<Uniform>,var targets:List<Image>)
@@ -30,9 +33,11 @@ class ShaderPipeline(private val context:Context,val definition:ShaderDefinition
         try {
             var w=originalW;var h=originalH;var memory=0L
             definition.passes.forEach { pass ->
-                val p=link(ShaderSource.compile(pass.source,true,pass.path.endsWith(".slang",true)),ShaderSource.compile(pass.source,false,pass.path.endsWith(".slang",true)))
-                try {passes+=Pass(p,uniforms(p),emptyList())}
-                catch(error:Exception){glDeleteProgram(p);throw error}
+                try {
+                    val p=link(ShaderSource.compile(pass.source,true,pass.path.endsWith(".slang",true)),ShaderSource.compile(pass.source,false,pass.path.endsWith(".slang",true)))
+                    try {passes+=Pass(p,uniforms(p),emptyList())}
+                    catch(error:Exception){glDeleteProgram(p);throw error}
+                }catch(error:Exception){throw ShaderPassFailure(pass.path,error)}
             }
             val feedback=shaderFeedbackTargets(passes.flatMap{pass->pass.uniforms.filter{it.type==GL_SAMPLER_2D}.map{it.name.substringAfterLast('.')}},aliases,definition.settings["feedback_pass"]?.toIntOrNull()?:0,passes.size)
             passes.forEachIndexed { index,pass ->
@@ -47,11 +52,11 @@ class ShaderPipeline(private val context:Context,val definition:ShaderDefinition
             }
             definition.lookups.forEach { lookup ->
                 val bounds=BitmapFactory.Options().apply{inJustDecodeBounds=true}
-                ShaderCatalog.open(context,lookup.path).use{BitmapFactory.decodeStream(it,null,bounds)}
+                open(lookup.path).use{BitmapFactory.decodeStream(it,null,bounds)}
                 require(bounds.outWidth in 1..8192 && bounds.outHeight in 1..8192){"Invalid shader texture: ${lookup.name}"}
                 memory+=bounds.outWidth.toLong()*bounds.outHeight*4
                 require(memory<=128L*1024*1024){"Shader textures and targets exceed 128 MiB"}
-                val bitmap=ShaderCatalog.open(context,lookup.path).use { BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply {inScaled=false;inPremultiplied=false}) }
+                val bitmap=open(lookup.path).use { BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply {inScaled=false;inPremultiplied=false}) }
                 checkNotNull(bitmap){"Could not load ${lookup.name}"}
                 val ids=IntArray(1);glGenTextures(1,ids,0)
                 try {

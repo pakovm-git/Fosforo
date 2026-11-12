@@ -9,11 +9,12 @@ object ShaderSource {
         body = body.replace(Regex("(?m)^[ \\t]*#(?:version|pragma)\\b[^\\r\\n]*"), "")
         if (slang) {
             body = scalarSwizzles(body)
-            body = body.replace(Regex("\\blayout\\s*\\(([^)]*)\\)")) { match ->
+            val layouts=Regex("\\blayout\\s*\\(([^)]*)\\)").findAll(withoutComments(body)).toList()
+            for(match in layouts.asReversed()) {
                 require(match.groupValues[1].split(',').all {
                     it.trim().matches(Regex("(?:push_constant|std140|(?:set|binding|location)\\s*=\\s*\\d+)"))
                 }) { "Unsupported shader layout: ${match.value}" }
-                ""
+                body=body.replaceRange(match.range,"")
             }
             body = body.replace(Regex("\\buniform\\s+(\\w+)\\s*\\{([^{}]*)\\}\\s*(\\w+)?\\s*;")) { match ->
                 val (type, fields, instance) = match.destructured
@@ -33,6 +34,9 @@ object ShaderSource {
                 val count = field + if (increment.isEmpty()) "" else "${increment}u"
                 "mod(float($count), float($divisor))" + if (multiplier.isEmpty()) "" else " * float($multiplier)"
             }
+            body = body.replace(Regex("(\\bmod\\(\\s*\\w+(?:\\.\\w+)?\\s*,\\s*\\d+\\.\\d*\\s*\\)\\s*\\+\\s*)((?:global|params)\\.FrameCount)\\b")) {
+                "${it.groupValues[1]}float(${it.groupValues[2]})"
+            }
             body = body.replace(Regex("\\b(params\\.FrameCount)(?=\\s*/\\s*\\d+\\.)")) { "float(${it.value})" }
             body = body.replace(Regex("\\b(params\\.FrameDirection)(?=\\s*[<>]=?\\s*-?\\d+\\.)")) { "float(${it.value})" }
             body = body.replace(Regex("\\bTIME\\s*/\\s*100\\b(?!\\.)"), "TIME / 100.0")
@@ -47,6 +51,12 @@ object ShaderSource {
                 "vec3 $name[$rows][$columns] = vec3[$rows][$columns](${constructors.joinToString(", ")});"
             }
             body = body.replace(Regex("\\b1\\s*-\\s*fp\\.y\\b"), "1.0 - fp.y")
+            // These upstream Jzazbz helpers use float-only math with desktop integer promotion.
+            body = body.replace(Regex("\\bvec3\\s+(?:XYZ_to_Jzazbz|Jzazbz_to_XYZ)\\s*\\([^{}]*\\)\\s*\\{[^{}]*\\}")) { function ->
+                function.value.replace(Regex("(?<![\\w.])(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?[fFuU]?(?![\\w.])")) { number ->
+                    if(number.value.all{it.isDigit()})number.value+".0" else number.value
+                }
+            }
             body = initializeGlobals(body)
         }
         val defines = if (slang) "" else "#define ${if (vertex) "VERTEX" else "FRAGMENT"}\n#define PARAMETER_UNIFORM\n"
@@ -74,7 +84,7 @@ object ShaderSource {
     }
 
     private fun stage(source: String, vertex: Boolean): String {
-        val stages = Regex("(?m)^[ \\t]*#pragma[ \\t]+stage[ \\t]+([^\\r\\n]+)").findAll(source).toList()
+        val stages = Regex("(?m)^[ \\t]*#pragma[ \\t]+stage[ \\t]+([^\\r\\n]+)").findAll(withoutComments(source)).toList()
         for (stage in stages) {
             require(stage.groupValues[1].trim() in listOf("vertex", "fragment")) {
                 "Unsupported Slang stage: ${stage.groupValues[1]}"

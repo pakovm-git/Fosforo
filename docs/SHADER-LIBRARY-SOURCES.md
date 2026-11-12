@@ -62,3 +62,70 @@ The existing import path’s 32-package cap and dependency-only extraction are a
 A repository download is not proof that every preset runs in BFI. Libretro specifies a broad Slang pipeline, normally reflected through glslang and SPIRV-Cross; BFI uses the prototype’s smaller OpenGL ES adapter. Its current limits include 16 passes, parameter/include bounds and supported framebuffer formats. Do not silently simplify an incompatible chain. Keep the selected/previous working effect if loading fails and report the error. The [upstream shader-system specification](https://github.com/libretro/slang-shaders/blob/2345ee91602a7404d3a1a6a5df6108d7305fdad4/README.md) explains the richer pipeline contract.
 
 Presets designed for low-resolution emulator input may look different or cost substantially more on a native-resolution screen capture. Heavy bezel, HDR, neural scaling and interpolation chains are not automatically appropriate for the Nova. Preserve the existing BFI timing and renderer architecture; this library feature does not establish hardware performance for every preset.
+
+## On-device compatibility checks
+
+The source tree stays intact. A separate `.bfi-compatible` index excludes presets
+that fail the current app/device/resolution checks; `.bfi-unavailable.json` records
+names and reasons. The report is shown after checking and can be reopened from
+Shaders. Bulk downloads validate automatically; existing installations can use
+Check installed shaders. Cancellation preserves the previously committed index.
+Manual imports and shader selections use the same actual pipeline probe: OpenGL
+ES compile/link, texture/framebuffer setup and two offscreen frames (including
+feedback). Manual installation failures show a dialog and do not select the
+failed preset. No display capture is used for compatibility checks.
+
+Passing is not a promise about visual correctness, physical timing, every history
+frame, performance or other resolutions. Malformed upstream files and unsupported
+RetroArch/Vulkan features remain unavailable. Recheck after changing resolution.
+The default EGL display is shared with output; probes release their own context,
+texture and surface without terminating the renderer's display.
+
+Bundled is the curated built-in collection. Favourites persist stable shader IDs;
+◆ and ★ identify both in the full list. Keep bundled shaders only stops output,
+confirms deletion of downloaded AND imported sources, retains bundled favourites,
+and falls back to CRT Lottes if needed. Original shader notices remain untouched.
+
+Preset parsing accepts upstream `//` and block comments without corrupting quoted
+paths, noneditable separator pragma labels, and large parameter ranges through
+bounded sliders. Up to 64 passes are allowed, subject to the unchanged source,
+texture, framebuffer and total target-memory budgets. Literal malformed upstream
+values still fail with their reason; the app does not silently repair source.
+
+## Fósforo local bundle preparation — 2026-11-12
+
+The prototype request set is Mattias, Hyllian NTSC Rainbow, zfast Composite,
+Newpixie, Geom, Geom Deluxe, Lottes and VHS/Godot. No CRT shader is now a hidden
+legacy identity, not a browser choice. Geom Deluxe's complete pinned dependency
+chain was prepared and passes the Nova's offscreen GPU probe. Its main GPL header
+and the supporting-file notice gaps above must not be conflated. Public-versus-
+local inclusion of unresolved chains is still pending user clarification; do not
+publish the development bundle as a license-cleared release.
+
+## Repeated request to include the prototype selection — 2026-11-12
+
+The user explicitly requested bundling Mattias and VHS/CRT again. The local
+prototype now includes those and Rainbow, completing all eight original curated
+choices. Original source files, includes and LUTs are retained byte-for-byte;
+existing licensed Newpixie customizations are preserved. Geom Deluxe is covered
+by its own manifest; new files are covered by shaders/prototype-additions-manifest.json.
+Mattias uses the same supplied GLSL as Shader; VHS retains its full two-pass chain.
+The notice gaps recorded above remain unresolved; local inclusion is not evidence
+that these complete chains are cleared for public redistribution. No new public
+release or repository upload was made as part of this change.
+
+## NTSC VHS addition — 2026-11-12
+
+The user's requested NTSC VHS is `vhs/ntsc-vcr.slangp` from the same upstream
+folder. The pinned copy matches the currently inspected upstream preset:
+https://github.com/libretro/slang-shaders/blob/master/vhs/ntsc-vcr.slangp
+It uses three NTSC passes, the VHS static pass, image adjustment, shared includes
+and a play texture: 15 complete dependency files, with hashes recorded in
+`app/src/main/assets/shaders/ntsc-vhs-manifest.json`. Its old downloader-derived
+ID is retained, so existing selection/favourites refer to the new bundled entry.
+Both this shader and VHS/Godot appear under VHS. The local curated set now has
+nine entries; earlier eight-entry counts above describe the prior checkpoint.
+
+## Public 1.0 packaging supersedes the development nine-preset bundle
+
+The public source/APK bundles Lottes, Newpixie, zfast Composite, Geom and a single-pass CC0 VHS/Godot variant. The previous development bundle is historical: Mattias, Rainbow, Geom Deluxe, NTSC VHS and the separately sourced Godot font/OSD pass are excluded from distribution pending verified terms. The Godot core source is unchanged; only its preset is reduced to one pass. See SHADER-RELEASE-LICENSE-RESEARCH.md, THIRD-PARTY-NOTICES.txt and shaders/public-bundle-manifest.json. Existing user imports are not removed. GPL test-only colorspace-tools.h remains outside APK assets with its original notice.

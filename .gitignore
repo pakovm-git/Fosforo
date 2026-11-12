@@ -12,7 +12,7 @@ local.properties
 .env.*
 keystore.properties
 signing.properties
-releases/
+/releases/
 *.apk
 *.aab
 .DS_Store

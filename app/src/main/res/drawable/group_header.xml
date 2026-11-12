@@ -1,0 +1,1 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"><item><shape><solid android:color="@color/bfi_header"/></shape></item><item android:gravity="bottom" android:height="2dp"><shape><solid android:color="@color/bfi_outline"/></shape></item></layer-list>

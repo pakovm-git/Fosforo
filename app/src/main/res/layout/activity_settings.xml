@@ -1,7 +1,7 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical">
   <include layout="@layout/settings_header" />
   <TextView android:id="@+id/editing_help" style="@style/Secondary" android:text="@string/autosave_help" android:visibility="gone" />
-  <ScrollView android:id="@+id/settings_scroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
+  <ScrollView android:id="@+id/settings_scroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:padding="12dp">
     <LinearLayout android:id="@+id/settings_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingTop="12dp" android:paddingBottom="12dp" />
   </ScrollView>
 </LinearLayout>

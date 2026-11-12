@@ -98,3 +98,27 @@ Full GPL version 2 text: shaders/GPL-2.0.txt. These shader assets retain their o
 Optional Libretro source library: https://github.com/libretro/slang-shaders
 Downloaded only on request, directly from GitHub at an immutable source revision.
 Files retain their original notices and differing license terms. The library is not relicensed as MIT.
+
+Jersey 15: Sarah Cadigan-Fried / The Soft Type Project Authors. Copyright 2023. SIL Open Font License 1.1; see Jersey15-OFL.txt.
+
+VHS and CRT Godot (Fósforo no-OSD variant): pend00 / Godot Shaders;
+CC0 1.0, as explicitly stated by the retained effect source and original page.
+https://godotshaders.com/shader/vhs-and-crt-monitor-effect/
+Upstream source: libretro/slang-shaders, snapshot
+2345ee91602a7404d3a1a6a5df6108d7305fdad4,
+vhs/shaders/vhs_and_crt_godot.slang (unchanged).
+Modification: local preset runs only this CC0 core; the separate Astherix font
+pass and ROM-derived OSD data are not distributed. PLAY/REWIND/timecode OSD is
+therefore omitted. Full CC0 legal text: shaders/CC0-1.0.txt.
+
+Public 1.0 excludes the locally tested Mattias, Rainbow, Geom Deluxe and NTSC VHS
+source/dependency chains because complete redistribution terms were not verified.
+The full official-source downloader/importer remains user initiated; downloaded
+files retain upstream notices and are not represented as uniformly MIT licensed.
+Release bundle hashes: shaders/public-bundle-manifest.json.
+Research and source links: docs/SHADER-RELEASE-LICENSE-RESEARCH.md.
+
+The GPL-2.0-or-later colorspace-tools.h regression fixture is retained under
+app/src/test/resources/shaders/ with its original header. It is test-only and
+not packaged in the APK. Original source: Libretro snapshot above,
+include/colorspace-tools.h; full GPL text: shaders/GPL-2.0.txt.

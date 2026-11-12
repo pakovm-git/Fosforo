@@ -1,6 +1,7 @@
 <resources>
   <style name="AppThemeBase" parent="android:style/Theme.Material.NoActionBar">
-    <item name="android:fontFamily">sans</item>
+    <item name="android:fontFamily">@font/jersey15</item>
+    <item name="android:switchStyle">@style/EffectSwitch</item>
     <item name="android:colorAccent">@color/bfi_focus</item>
     <item name="android:colorControlNormal">@color/bfi_text_secondary</item>
     <item name="android:colorControlActivated">@color/bfi_focus</item>

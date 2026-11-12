@@ -54,6 +54,25 @@ class ShaderSourceTest {
         assertEquals(1, Regex("#version").findAll(fragment).count())
     }
 
+    @Test fun ntscFloatPhaseCastsFrameCountWithoutChangingIntegerOperations() {
+        val source=slang.replace("FragColor = texture(Source, vTexCoord + blur);",
+            "uint parity = params.FrameCount % 2u; FragColor = vec4(mod(vTexCoord.y, 3.0) + params.FrameCount + float(parity));")
+        val fragment=ShaderSource.compile(source,vertex=false,slang=true)
+        assertTrue(fragment.contains("mod(vTexCoord.y, 3.0) + float(params.FrameCount)"))
+        assertTrue(fragment.contains("params.FrameCount % 2u"))
+        assertTrue(fragment.contains("uint FrameCount;"))
+    }
+
+    @Test fun jzazbzHelpersUseFloatLiteralsWithoutChangingCounterTypes() {
+        val helpers=java.io.File("src/test/resources/shaders/colorspace-tools.h").readText()
+        val source=slang.replace("#pragma stage vertex",helpers+"\n#pragma stage vertex")
+        val fragment=ShaderSource.compile(source,vertex=false,slang=true)
+        assertTrue(fragment.contains("3424.0 / pow(2.0,12.0)"))
+        assertTrue(fragment.contains("(b - 1.0)"))
+        assertTrue(fragment.contains("1.6295499532821566 * pow(10.0,-11.0)"))
+        assertTrue(fragment.contains("uint FrameCount;"))
+    }
+
     @Test fun slangRetainsCommonUniformsAndOnlyTheRequestedStage() {
         val vertex = ShaderSource.compile(slang, vertex = true, slang = true)
         val fragment = ShaderSource.compile(slang, vertex = false, slang = true)

@@ -47,19 +47,19 @@ class AdvancedActivity : ScreenActivity(),DisplayManager.DisplayListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); restored=savedInstanceState; pendingReport=savedInstanceState?.getString("pendingReport"); title(R.string.advanced_title)
         val panels=boundedCards(firstWideWeight=.5f,firstNarrowWeight=.5f)
-        val display=column(panels.preview); section(R.string.display_section,display)
+        val display=group(R.string.display_section,panels.preview)
         text(R.string.refresh_target,display,true)
         target=Spinner(this).apply { minimumHeight=dp(48); contentDescription=getString(R.string.refresh_target) }; display.addView(target,LinearLayout.LayoutParams(-1,-2))
-        request=check(R.string.request_refresh,display); text(R.string.refresh_help,display,true); reported=text(R.string.unknown_rate,display,true)
-        val recovery=column(panels.preview); section(R.string.recovery_section,recovery)
-        force=check(R.string.always_force,recovery); text(R.string.recovery_help,recovery,true)
-        val tests=column(panels.controls); section(R.string.tests_section,tests)
+        request=check(R.string.request_refresh,display); button(R.string.refresh_info,display){AlertDialog.Builder(this).setOnKeyListener{_,_,event->stopFromController(event)}.setMessage(R.string.refresh_help).setPositiveButton(android.R.string.ok,null).show()}; reported=text(R.string.unknown_rate,display,true)
+        val recovery=group(R.string.recovery_section,panels.preview)
+        force=check(R.string.always_force,recovery); button(R.string.recovery_info,recovery){AlertDialog.Builder(this).setOnKeyListener{_,_,event->stopFromController(event)}.setMessage(R.string.recovery_help).setPositiveButton(android.R.string.ok,null).show()}
+        val tests=group(R.string.tests_section,panels.controls)
         val label=text(R.string.duration_title,tests,true); duration=numberField(tests); label.labelFor=duration.id
-        text(R.string.duration_help,tests,true); test=button(R.string.run_test,tests) { runTest() }
+        button(R.string.duration_info,tests){AlertDialog.Builder(this).setOnKeyListener{_,_,event->stopFromController(event)}.setMessage(R.string.duration_help).setPositiveButton(android.R.string.ok,null).show()}; test=button(R.string.run_test,tests) { runTest() }
         countdown=text(R.string.until_off,tests,true)
-        val diag=column(panels.controls); section(R.string.diagnostics_section,diag)
+        val diag=group(R.string.diagnostics_section,panels.controls)
         diagnostics=check(R.string.enable_diagnostics,diag); counters=text(R.string.diagnostics_none,diag,true)
-        text(R.string.measurement_notice,diag,true)
+        button(R.string.measurement_info,diag){AlertDialog.Builder(this).setOnKeyListener{_,_,event->stopFromController(event)}.setMessage(R.string.measurement_notice).setPositiveButton(android.R.string.ok,null).show()}
         button(R.string.copy_report,diag) {
             val report=reportText() ?: return@button
             getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(getString(R.string.report_title),report))
@@ -69,7 +69,7 @@ class AdvancedActivity : ScreenActivity(),DisplayManager.DisplayListener {
             try { startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("text/plain").putExtra(Intent.EXTRA_TITLE,"bfi-report.txt"),74) }
             catch (_: RuntimeException) { Toast.makeText(this,R.string.report_failed,Toast.LENGTH_LONG).show() }
         }
-        val permissions=column(panels.controls); section(R.string.permissions_section,permissions)
+        val permissions=group(R.string.permissions_section,panels.controls)
         permissionStatus=text(R.string.loading,permissions,true)
         if(runtime.usesModernOutput)button(R.string.accessibility_permission,permissions){openSettings(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))}
         else button(R.string.overlay_permission,permissions) { openSettings(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName"))) }
@@ -79,7 +79,16 @@ class AdvancedActivity : ScreenActivity(),DisplayManager.DisplayListener {
         }
         usageButton=button(R.string.usage_permission,permissions) { openSettings(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
         button(R.string.display_settings,permissions) { openSettings(Intent(Settings.ACTION_DISPLAY_SETTINGS)) }
-        text(R.string.permission_details,permissions,true); text(R.string.input_notice,permissions,true)
+        text(R.string.permission_details,permissions,true); text(if(runtime.usesModernOutput)R.string.touch_passes else R.string.input_notice,permissions,true)
+        val about=group(R.string.about_title,panels.controls)
+        button(R.string.font_credits,about){
+            AlertDialog.Builder(this).setOnKeyListener{_,_,event->stopFromController(event)}.setTitle(R.string.font_credits)
+                .setMessage(getString(R.string.font_credit_text)+"\n\n"+assets.open("Jersey15-OFL.txt").bufferedReader().use{it.readText()})
+                .setPositiveButton(android.R.string.ok,null).show()
+        }
+        button(R.string.third_party_notices,about){
+            AlertDialog.Builder(this).setOnKeyListener{_,_,event->stopFromController(event)}.setTitle(R.string.third_party_notices).setMessage(assets.open("THIRD-PARTY-NOTICES.txt").bufferedReader().use{it.readText()}).setPositiveButton(android.R.string.ok,null).show()
+        }
         controls.addAll(listOf(target,request,force,diagnostics,duration))
         initialize()
         for (box in listOf(request,force,diagnostics)) box.setOnCheckedChangeListener { _,_ -> if (initialized && !changing) saveDraft() }

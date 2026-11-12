@@ -15,7 +15,7 @@ import java.net.URL
 
 /** Explicit source downloads only; captures and settings are never sent to the network. */
 object ShaderLibrary {
-    data class Status(val busy:Boolean=false,val message:String="",val revision:String?=null)
+    data class Status(val busy:Boolean=false,val message:String="",val revision:String?=null,val report:List<String>?=null)
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
     private val cancelled=AtomicBoolean()
@@ -54,6 +54,68 @@ object ShaderLibrary {
         catch(error:Exception){connection.disconnect();throw error}
         return connection
     }
+    fun report(context:Context):List<String> = runCatching {
+        val revision=current(context)?:return emptyList()
+        val file=File(root(context),"$revision/.bfi-unavailable.json")
+        require(file.length()<=4*1024*1024)
+        val data=org.json.JSONArray(file.readText())
+        (0 until data.length()).map{data.getString(it)}
+    }.getOrDefault(emptyList())
+    private fun validate(context:Context,revision:String):List<String> {
+        val folder=File(root(context),revision)
+        val all=ShaderLibraryArchive.choices(folder,revision,false)
+        val accepted=mutableListOf<String>();val failed=mutableListOf<String>()
+        val parameterChecks=hashMapOf<String,String?>()
+        ShaderProbe(context).use { probe ->
+            all.forEachIndexed { index,choice ->
+                checkCancelled()
+                main.post{publish(Status(true,"Checking shaders: ${index+1}/${all.size} — ${choice.label}"))}
+                try {
+                    var budget=8*1024*1024
+                    val definition=ShaderCatalog.loadChoice(choice){path->
+                        val bytes=ShaderCatalog.open(context,path).use{it.readNBytesBounded(2*1024*1024)}
+                        budget-=bytes.size;require(budget>=0){"Shader sources expand beyond 8 MiB"}
+                        val text=bytes.toString(Charsets.UTF_8)
+                        if(path !in parameterChecks)parameterChecks[path]=try{ShaderCatalog.parseParameters(text);null}catch(error:Exception){error.message?:"Invalid shader parameters"}
+                        parameterChecks[path]?.let{error(it)}
+                        text
+                    }
+                    probe.check(definition)
+                    accepted+=choice.assetPath.split('/',limit=3)[2]
+                }catch(error:Exception){failed+="${choice.label}\n${error.message.orEmpty().take(400)}"}
+            }
+        }
+        checkCancelled()
+        File(folder,".bfi-unavailable.json").writeText(org.json.JSONArray(failed).toString())
+        val active=AtomicFile(File(folder,".bfi-compatible"));val output=active.startWrite()
+        try{output.write(accepted.joinToString("\n").toByteArray());active.finishWrite(output)}catch(error:Exception){active.failWrite(output);throw error}
+        return failed
+    }
+    fun scan(context:Context) {
+        if(status.busy)return
+        val app=context.applicationContext;val revision=current(app)?:return
+        cancelled.set(false);publish(Status(true,"Checking installed shaders…"))
+        worker.execute {
+            try {
+                val failed=validate(app,revision)
+                main.post{cachedRevision=null;publish(Status(false,"Compatibility check finished: ${failed.size} unavailable.",revision,failed))}
+            }catch(error:Exception){main.post{publish(Status(false,error.message?:"Compatibility check failed"))}}
+        }
+    }
+    fun removeAll(context:Context) {
+        if(status.busy)return
+        val app=context.applicationContext
+        publish(Status(true,"Removing downloaded and imported shaders…"))
+        worker.execute {
+            val message=try {
+                val folder=root(app)
+                check(!folder.exists() || folder.deleteRecursively()){"Could not remove downloaded shaders"}
+                ShaderImports.deleteAll(app)
+                "Downloaded and imported shaders removed. Bundled shaders kept."
+            }catch(error:Exception){error.message?:"Could not remove shaders"}
+            main.post {cachedRevision=null;cachedChoices=emptyList();publish(Status(false,message,""))}
+        }
+    }
     fun download(context:Context) {
         if(status.busy)return
         val app=context.applicationContext
@@ -88,6 +150,7 @@ object ShaderLibrary {
                     ShaderLibraryArchive.install(file,root(app),revision,::checkCancelled)
                 }
                 checkCancelled()
+                val failed=if(!File(root(app),"$revision/.bfi-compatible").isFile)validate(app,revision) else report(app)
                 val catalog=ShaderLibraryArchive.choices(File(root(app),revision),revision)
                 val active=AtomicFile(File(root(app),"current"));val output=active.startWrite()
                 try {output.write(revision.toByteArray());active.finishWrite(output)}
@@ -95,7 +158,7 @@ object ShaderLibrary {
                 main.post {
                     cachedRevision=revision;cachedChoices=catalog
                     val message=if(alreadyInstalled)"Libretro library is up to date (${catalog.size} presets)." else "Downloaded ${catalog.size} presets in ${catalog.map{it.category}.distinct().size} categories."
-                    publish(Status(false,message,revision))
+                    publish(Status(false,message+" ${failed.size} unavailable.",revision,failed))
                 }
             }catch(error:Exception) {
                 main.post{publish(Status(false,error.message?:"Could not download the shader library"))}

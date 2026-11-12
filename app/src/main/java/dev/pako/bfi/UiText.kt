@@ -19,7 +19,7 @@ object UiText {
         Reason.READY -> R.string.reason_ready; Reason.MANUAL -> R.string.reason_manual; Reason.TIMEOUT -> R.string.reason_timeout; Reason.SLEEP -> R.string.reason_sleep
         Reason.CONTROLS -> R.string.reason_controls; Reason.EXCLUDED -> R.string.reason_excluded; Reason.UNKNOWN_APP -> R.string.reason_unknown; Reason.OVERLAY -> R.string.reason_permission
         Reason.NOTIFICATION -> R.string.reason_notification; Reason.USAGE -> R.string.reason_usage; Reason.LOW_RATE -> R.string.reason_low_rate
-        Reason.NO_DISPLAY -> R.string.reason_no_display; Reason.SETTINGS -> R.string.reason_settings; Reason.NOTICE -> R.string.reason_acknowledge
+        Reason.NO_DISPLAY -> R.string.reason_no_display; Reason.SETTINGS -> R.string.reason_settings
         Reason.EMPTY_SELECTED -> R.string.empty_selected; Reason.TARGET_UNAVAILABLE -> R.string.reason_target; Reason.SERVICE -> R.string.reason_start_failed
         Reason.SURFACE -> R.string.reason_surface; Reason.STALLED -> R.string.reason_stalled; Reason.TIMING -> R.string.reason_unstable
         Reason.DISPLAY -> R.string.reason_display; Reason.BUSY -> R.string.reason_busy; Reason.RETRIES -> R.string.reason_retries

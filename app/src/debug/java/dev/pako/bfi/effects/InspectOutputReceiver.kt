@@ -11,9 +11,20 @@ import java.io.File
 class InspectOutputReceiver:BroadcastReceiver() {
     override fun onReceive(context:Context,intent:Intent) {
         val runtime=(context.applicationContext as dev.pako.bfi.BfiApplication).runtime
+        if(intent.getBooleanExtra("check_library",false)) {runtime.stop();ShaderLibrary.scan(context);return}
+        intent.getStringExtra("check_shader")?.let { id ->
+            val pending=goAsync()
+            Thread {
+                val result=try {ShaderProbe(context).use{it.check(ShaderCatalog.load(context,id))};"PASS: $id"}
+                    catch(error:Exception){"FAIL: $id: ${error.message}"}
+                File(context.filesDir,"shader-check.txt").writeText(result)
+                pending.finish()
+            }.start()
+            return
+        }
         if(intent.getBooleanExtra("state",false)) {
             val s=runtime.state
-            File(context.filesDir,"effects-state.txt").writeText("enabled=${s.userEnabled}\nphase=${s.phase}\nreason=${s.reason}\nsession=${s.session}\ncapture=${runtime.captureActive}\ncrtNeedsRestart=${runtime.crtNeedsRestart}\nbfi=${s.settings.bfiEnabled}\ncrt=${s.settings.crtEnabled}\nshader=${s.settings.shaderId}\nwindowAlpha=${EffectAccessibilityService.instance?.windowAlphaForInspection()}\nwindowAttached=${EffectAccessibilityService.instance?.windowAttachedForInspection()}\npattern=${Session.pattern.encoded}\n")
+            File(context.filesDir,"effects-state.txt").writeText("libraryBusy=${ShaderLibrary.status.busy}\nlibraryStatus=${ShaderLibrary.status.message.replace('\n',' ')}\naccessibility=${EffectAccessibilityService.instance!=null}\nnotifications=${dev.pako.bfi.ExperimentService.notificationsReady(context)}\nreadiness=${runtime.readiness()}\nenabled=${s.userEnabled}\nphase=${s.phase}\nreason=${s.reason}\nsession=${s.session}\ncapture=${runtime.captureActive}\ncrtNeedsRestart=${runtime.crtNeedsRestart}\nbfi=${s.settings.bfiEnabled}\ncrt=${s.settings.crtEnabled}\nshader=${s.settings.shaderId}\nwindowAlpha=${EffectAccessibilityService.instance?.windowAlphaForInspection()}\nwindowAttached=${EffectAccessibilityService.instance?.windowAttachedForInspection()}\npattern=${Session.pattern.encoded}\n")
             return
         }
         val output=EffectAccessibilityService.instance?.outputForInspection()?:return

@@ -28,6 +28,7 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
                 NotificationChannel(CHANNEL,context.getString(R.string.notification_channel),NotificationManager.IMPORTANCE_LOW))
         }
         fun notificationsReady(context: Context): Boolean {
+            if (Build.VERSION.SDK_INT>=33 && context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED) return false
             val manager=context.getSystemService(NotificationManager::class.java)
             return manager.areNotificationsEnabled() && (manager.getNotificationChannel(CHANNEL)?.importance ?: 0) != NotificationManager.IMPORTANCE_NONE
         }
@@ -281,8 +282,8 @@ class ExperimentService : Service(), DisplayManager.DisplayListener {
             Phase.STARTING -> if (s.mode is SessionMode.Timed) getString(R.string.notification_timed_starting,UiText.integer(((s.deadlineUptimeMillis ?: 0)-SystemClock.uptimeMillis()+999).coerceAtLeast(0)/1000)) else getString(R.string.state_starting)
             else -> if (s.mode is SessionMode.Timed) getString(R.string.notification_timed,UiText.integer(((s.deadlineUptimeMillis ?: 0)-SystemClock.uptimeMillis()+999).coerceAtLeast(0)/1000)) else getString(R.string.notification_continuous)
         }
-        return Notification.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_bfi).setContentTitle(getString(R.string.app_name)).setContentText(body)
-            .setContentIntent(open).setOngoing(true).addAction(Notification.Action.Builder(Icon.createWithResource(this,R.drawable.ic_bfi),getString(R.string.stop),stop).build()).build()
+        return Notification.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_bfi_tile).setContentTitle(getString(R.string.app_name)).setContentText(body)
+            .setContentIntent(open).setOngoing(true).addAction(Notification.Action.Builder(Icon.createWithResource(this,R.drawable.ic_bfi_tile),getString(R.string.stop),stop).build()).build()
     }
     override fun onDisplayChanged(displayId: Int) {
         if (displayId != Display.DEFAULT_DISPLAY || ending || !runtime.state.userEnabled) return

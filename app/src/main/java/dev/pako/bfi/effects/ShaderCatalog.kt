@@ -5,10 +5,12 @@ import java.io.InputStream
 import kotlin.math.round
 
 data class ShaderChoice(val id: String, val label: String, val assetPath: String) {
+    val bundled:Boolean get() = !assetPath.startsWith("library/") && !assetPath.startsWith("imports/")
     val category:String get() = when {
         assetPath.startsWith("library/") -> assetPath.split('/',limit=3)[2].let{if('/' in it)it.substringBefore('/') else "general"}
         assetPath.startsWith("imports/") -> "imported"
         assetPath.startsWith("shaders/upstream/slang/") -> assetPath.removePrefix("shaders/upstream/slang/").substringBefore('/')
+        assetPath=="crt-mattias.glsl" -> "crt"
         else -> "general"
     }
 }
@@ -17,8 +19,9 @@ data class ShaderParameter(val id: String, val label: String, val defaultValue: 
     val toggle get() = min == 0f && max == 1f && step == 1f
     fun sliderValues(): List<Float> {
         if (!editable) return listOf(min)
-        val count = kotlin.math.ceil((max.toDouble() - min) / step).toInt()
-        return ((0..count).map { (min + it * step).coerceAtMost(max) } + defaultValue).distinct().sorted()
+        val steps = kotlin.math.ceil((max.toDouble() - min) / step)
+        val count = steps.coerceAtMost(1024.0).toInt().coerceAtLeast(1)
+        return ((0..count).map { normalize((min.toDouble() + (max.toDouble()-min)*it/count).toFloat()) } + defaultValue + max).distinct().sorted()
     }
     fun normalize(value: Float): Float {
         if (!value.isFinite() || value == defaultValue) return defaultValue
@@ -36,14 +39,15 @@ data class ShaderState(val id: String, val values: Map<String, Float>)
 
 object ShaderCatalog {
     val choices = listOf(
+        ShaderChoice("vhs_godot", "VHS and CRT Godot", "shaders/upstream/slang/vhs/vhs_and_crt_godot.slangp"),
         ShaderChoice("lottes", "CRT Lottes", "shaders/upstream/slang/crt/crt-lottes.slangp"),
         ShaderChoice("newpixie", "Newpixie CRT", "shaders/upstream/slang/crt/newpixie-crt.slangp"),
         ShaderChoice("zfast", "zfast CRT Composite", "shaders/upstream/slang/crt/zfast-crt-composite.slangp"),
         ShaderChoice("geom", "CRT Geom", "shaders/upstream/slang/crt/crt-geom.slangp"),
-        ShaderChoice("none", "No CRT shader", "passthrough.slang")
     )
+    private val legacyPassthrough=ShaderChoice("none", "No CRT shader", "passthrough.slang")
     private val number = "[-+]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][-+]?[0-9]+)?"
-    private val pragma = Regex("^\\s*#pragma\\s+parameter\\s+(\\w+)\\s+\"([^\"]*)\"\\s+($number)\\s+($number)\\s+($number)(?:\\s+($number))?\\s*(?://.*)?$")
+    private val pragma = Regex("^\\s*#pragma\\s+parameter\\s+([\\w-]+)\\s+\"([^\"]*)\"\\s+($number)\\s+($number)\\s+($number)(?:\\s+($number))?\\s*(?://.*)?$")
     private val include = Regex("^\\s*#include\\s+\"([^\"]+)\"\\s*(?://.*)?$")
 
     fun choices(context:Context):List<ShaderChoice> = (choices + ShaderLibrary.choices(context) + ShaderImports.choices(context)).distinctBy{it.id}
@@ -53,7 +57,7 @@ object ShaderCatalog {
         else -> context.assets.open(path)
     }
     fun load(context: Context, id: String): ShaderDefinition {
-        val choice=choices(context).firstOrNull{it.id==id}?:error("Selected shader is unavailable. Download the library or choose another shader.")
+        val choice=choices(context).firstOrNull{it.id==id}?:legacyPassthrough.takeIf{it.id==id}?:error("Selected shader is unavailable. Download the library or choose another shader.")
         var textBudget=8*1024*1024
         return loadChoice(choice){path->
             val bytes=open(context,path).use{it.readNBytesBounded(2*1024*1024)}
@@ -62,20 +66,21 @@ object ShaderCatalog {
         }
     }
     internal fun load(id: String, read: (String) -> String): ShaderDefinition =
-        loadChoice(choices.firstOrNull { it.id == id } ?: choices.first(),read)
+        loadChoice(choices.firstOrNull { it.id == id } ?: legacyPassthrough.takeIf { it.id == id } ?: choices.first(),read)
 
     internal fun loadChoice(choice:ShaderChoice,read:(String)->String):ShaderDefinition {
-        val settings = if (choice.id in setOf("none")) linkedMapOf("shaders" to "1", "shader0" to choice.assetPath, "scale_type0" to "viewport", "scale0" to "1.0")
+        val singleSource=choice.assetPath.endsWith(".glsl") || choice.assetPath.endsWith(".slang")
+        val settings = if (singleSource) linkedMapOf("shaders" to "1", "shader0" to choice.assetPath, "scale_type0" to "viewport", "scale0" to "1.0")
             else preset(choice.assetPath,read,emptySet())
         val count = requireNotNull(settings["shaders"]?.toIntOrNull()) { "Missing shader pass count" }
-        require(count in 1..16) { "Invalid shader pass count" }
+        require(count in 1..64) { "Invalid shader pass count" }
         val passes = (0 until count).map { index ->
-            val path = if (choice.id in setOf("none")) choice.assetPath else resolve(choice.assetPath, requireNotNull(settings["shader$index"]) { "Missing shader pass $index" })
+            val path = if (singleSource) choice.assetPath else resolve(choice.assetPath, requireNotNull(settings["shader$index"]) { "Missing shader pass $index" })
             ShaderPass(path, expand(path, read, emptySet()))
         }
         val parameters = linkedMapOf<String, ShaderParameter>()
         passes.forEach { pass -> parseParameters(pass.source).forEach { parameter -> parameters.putIfAbsent(parameter.id, parameter) } }
-        // These two upstream Rainbow declarations have no shader code behind them.
+        // The downloaded Rainbow preset has two declarations with no shader code.
         if (choice.id == "hyllian_ntsc_rainbow") parameters.keys.removeAll(setOf("SHARPNESS_HACK", "CRT_ANTI_RINGING"))
         val defaults = parameters.values.map { parameter ->
             val override = settings[parameter.id]?.toFloatOrNull()?.takeIf { it.isFinite() }
@@ -87,13 +92,12 @@ object ShaderCatalog {
                 settings["${name}_wrap_mode"] == "repeat", settings["${name}_mipmap"] == "true")
         }
         require(defaults.size<=512){"Too many shader parameters"}
-        require(defaults.sumOf{if(it.editable)(it.max.toDouble()-it.min)/it.step else 0.0}<=200_000){"Shader parameter ranges are too large"}
         return ShaderDefinition(choice, passes, defaults, settings.toMap(), lookups)
     }
 
     private fun preset(path:String,read:(String)->String,ancestors:Set<String>):LinkedHashMap<String,String> {
         require(ancestors.size<16 && path !in ancestors){"Recursive or overly deep preset reference"}
-        val source=read(path)
+        val source=withoutPresetComments(read(path))
         val result=linkedMapOf<String,String>()
         source.lineSequence().forEach{line->
             val reference=Regex("^\\s*#reference\\s+\"([^\"]+)\"\\s*(?://.*)?$").matchEntire(line)
@@ -113,9 +117,26 @@ object ShaderCatalog {
         return (List(base.size-common){".."}+target.drop(common)).joinToString("/")
     }
 
+    private fun withoutPresetComments(source:String):String {
+        val out=StringBuilder();var index=0;var quoted=false;var block=false;var line=false
+        while(index<source.length){
+            val c=source[index];val next=source.getOrNull(index+1)
+            when {
+                line -> {if(c=='\n'){line=false;out.append(c)}else out.append(' ')}
+                block -> {if(c=='*' && next=='/'){block=false;out.append("  ");index++}else out.append(if(c=='\n')c else ' ')}
+                !quoted && c=='/' && next=='/' -> {line=true;out.append("  ");index++}
+                !quoted && c=='/' && next=='*' -> {block=true;out.append("  ");index++}
+                else -> {if(c=='"')quoted=!quoted;out.append(c)}
+            }
+            index++
+        }
+        require(!block){"Unclosed preset comment"}
+        return out.toString()
+    }
+
     internal fun parseSettings(source: String): LinkedHashMap<String, String> {
         val settings = linkedMapOf<String, String>()
-        source.lineSequence().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith('#') }.forEach { line ->
+        withoutPresetComments(source).lineSequence().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith('#') }.forEach { line ->
             val pair = line.split('=', limit = 2)
             require(pair.size == 2) { "Invalid shader preset line: $line" }
             val value = pair[1].trim()
@@ -133,7 +154,8 @@ object ShaderCatalog {
         val values = (3..5).map { match.groupValues[it].toFloat() }
         val (default, min, max) = values
         val step = match.groupValues[6].takeIf { it.isNotEmpty() }?.toFloat() ?: (max - min) / 10f
-        require(values.all { it.isFinite() } && (min == max || (max.toDouble()-min)/step <= 100_000) && min <= max && default in min..max && step.isFinite() && (step > 0f || min == max)) { "Invalid shader parameter bounds: $line" }
+        require(values.all { it.isFinite() } && min <= max && default in min..max && step.isFinite() && (step > 0f || min == max)) { "Invalid shader parameter bounds: $line" }
+        require(min == max || match.groupValues[1].matches(Regex("[A-Za-z_][A-Za-z0-9_]*"))){"Invalid editable parameter name"}
         ShaderParameter(match.groupValues[1], match.groupValues[2], default, min, max, step)
     }.toList()
 

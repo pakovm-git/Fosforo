@@ -15,9 +15,10 @@ internal object ShaderLibraryArchive {
         require(value.matches(Regex("[0-9a-f]{40}"))){"Invalid source revision"}
         return value
     }
-    fun choices(folder:File,revision:String):List<ShaderChoice> {
+    fun choices(folder:File,revision:String,onlyValidated:Boolean=true):List<ShaderChoice> {
         revision(revision)
-        val index=File(folder,".bfi-index")
+        val validated=File(folder,".bfi-compatible")
+        val index=if(onlyValidated && validated.isFile)validated else File(folder,".bfi-index")
         require(index.length()<=4*1024*1024){"Shader index is too large"}
         return index.readLines().map { path ->
             ShaderPackage.entryPath(path)

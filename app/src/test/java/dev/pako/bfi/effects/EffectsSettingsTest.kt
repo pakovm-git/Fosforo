@@ -7,13 +7,20 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class EffectsSettingsTest {
+    @Test fun favouritesAreOptionalValidatedAndBundledChoicesStayDistinct() {
+        assertTrue(SettingsCodec.decode(emptyMap()).favouriteShaders.isEmpty())
+        assertThrows(IllegalArgumentException::class.java){BfiSettings(favouriteShaders=setOf("../bad"))}
+        assertTrue(ShaderCatalog.choices.all{it.bundled})
+        assertFalse(ShaderChoice("test","Test","library/${"a".repeat(40)}/crt/test.slangp").bundled)
+        assertFalse(ShaderChoice("test","Test","imports/${"a".repeat(24)}/test.slangp").bundled)
+    }
     @Test fun legacySettingsKeepBfiAndDoNotEnableCapture() {
         val old=SettingsCodec.decode(mapOf("visible" to 2,"black" to 1))
         assertTrue(old.bfiEnabled);assertFalse(old.crtEnabled)
         assertEquals(BfiPattern.legacy(2,1).encoded,BfiPattern.legacy(old.globalPattern.visibleSlots,old.globalPattern.blackSlots).encoded)
     }
     @Test fun fullSettingsRoundTripDoesNotLoseAppRulesOrEffectSelections() {
-        val settings=BfiSettings(crtEnabled=true,shaderId="newpixie",shaderValues=mapOf("curvature" to .75f),multiStepPattern="1, 1, 2, 1",
+        val settings=BfiSettings(crtEnabled=true,shaderId="newpixie",favouriteShaders=setOf("newpixie","library_0123456789abcdef"),shaderValues=mapOf("curvature" to .75f),multiStepPattern="1, 1, 2, 1",
             includedPackages=setOf("test.game"),activationMode=ActivationMode.SELECTED_APPS,resumeAfterUnlock=false)
         assertEquals(settings,SettingsCodec.decode(SettingsCodec.encode(settings)))
     }
@@ -30,11 +37,18 @@ class EffectsSettingsTest {
         assertFalse(controller.state.settings.bfiEnabled)
         controller.timeout(before.session,15100);assertFalse(controller.state.userEnabled)
     }
-    @Test fun onlyConfirmedLicensedCatalogAndCompleteDependenciesAreBundled() {
+    @Test fun curatedCatalogHasCompleteDependenciesAndHidesLegacyPassthrough() {
         val assets=java.io.File("src/main/assets")
-        assertEquals(setOf("lottes","newpixie","zfast","geom","none"),ShaderCatalog.choices.map{it.id}.toSet())
+        assertEquals(setOf("lottes","newpixie","zfast","geom","vhs_godot"),ShaderCatalog.choices.map{it.id}.toSet())
+        assertFalse(ShaderCatalog.choices.any{it.id=="none"})
+        assertFalse(java.io.File(assets,"crt-mattias.glsl").exists())
+        assertFalse(java.io.File(assets,"shaders/upstream/slang/vhs/shaders/vhs_font.slang").exists())
+        val vhs=ShaderCatalog.load("vhs_godot"){java.io.File(assets,it).readText()}
+        assertEquals(1,vhs.passes.size)
+        assertTrue(vhs.passes.single().source.contains("CC0 license"))
+        assertEquals("none",ShaderCatalog.load("none"){java.io.File(assets,it).readText()}.choice.id)
         ShaderCatalog.choices.forEach { choice ->
-            if(choice.id!="none")assertEquals("crt",choice.category)
+            assertEquals(if(choice.id=="vhs_godot")"vhs" else "crt",choice.category)
             val definition=ShaderCatalog.load(choice.id){java.io.File(assets,it).readText()}
             assertTrue(definition.passes.isNotEmpty())
             definition.passes.forEach { pass ->

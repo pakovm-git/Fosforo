@@ -44,7 +44,8 @@ class EffectsSession(private val context:Context,private val runtime:BfiRuntime,
         val settings=runtime.state.settings
         Session.temporalEffect=if(settings.bfiEnabled)TemporalEffect.BFI else TemporalEffect.OFF
         Session.pattern=effectivePattern(settings,runtime.state.effectivePattern,runtime.foregroundPackage)
-        Session.shader=ShaderState(settings.shaderId,settings.shaderValues)
+        val shader=settings.shaderFor(runtime.foregroundPackage)
+        Session.shader=ShaderState(shader.id,shader.values)
         engine?.hz=runtime.display()?.refreshRate?.toDouble()?:60.0
     }
     fun render(next:Epoch) {

@@ -1,56 +1,277 @@
-BFI 0.7.0 update: normal Home and Settings previews and the local decorative BFI mask are removed. Effects are selected by separate BFI/CRT switches and one Start/Stop. On Android 13+ the real effects also apply over the app’s controls; Test effects offers a separate explicitly started motion test. On older Android, output pauses over controls. CRT settings use existing bounded cards, theme tokens, autosave and top-right reset. Sections describing MotionPreview below are historical implementation notes, superseded by this paragraph. See CRT-INTEGRATION.md.
+Fósforo native Android design contract — Jersey 15 revision, 2026-11-12
 
-BFI native Android design guide — version 0.6
+Scope and source of truth
+Implement existing features using the approved Home, BFI and Shaders mockups in
+outputs/bfi-ui-prototype (the sibling approval artifact), then apply the same
+components to Apps, per-app settings and Settings. The supplied FOSFORO concepts
+establish composition. User subsequently requested bolder borders: use 2dp card,
+inset and control borders; retain a stronger focus state. Earlier interpretations
+with stretched outer panels and merged switch/navigation rows are superseded.
+Preserve package dev.pako.bfi, capture/renderer/security, settings encoding,
+activation tokens, deadlines, Stop and all existing compatibility validation.
 
-Read this guide before changing the UI. Prefer the existing shared components and resource tokens. Keep session safety and persistence behavior intact while reorganizing presentation.
+Identity
+The app is Fósforo; keep package dev.pako.bfi and existing stored settings so an
+update preserves the installation, permissions and shader library. BFI remains
+the name of the black frame insertion effect. Do not rename the GitHub repository.
+Follow system light/dark. Obsidian #0B0B0F, vibrant violet #8863DC, Phosphor #FFE04A
+and lavender-derived text/surfaces define the brand. Violet structures buttons,
+outlines and the moving grid. Phosphor yellow fills checked switches and selected
+segments; dark ink preserves contrast on those fills. Use dark amber for active
+text in light mode and yellow in dark mode. Preserve all existing shapes, spacing,
+scrolling and control behavior. Status must remain readable without color alone.
+Home uses an accented Jersey 15 Fósforo wordmark; the adaptive icon is a purple CRT
+television with yellow screen and separate monochrome layer for themed icons.
+Editable SVG sources live in assets/branding. Keep the television silhouette in
+Android's adaptive-icon safe region. Subtle static text glow is reserved for the
+wordmark and active status in dark mode; no pulsing or extra rendering loop.
+Use bundled offline Jersey 15 throughout native views. Sarah Cadigan-Fried / The
+Soft Type Project Authors are credited in Settings -> About -> font credits.
+Include the original SIL Open Font License 1.1 in assets/Jersey15-OFL.txt and credit
+in THIRD-PARTY-NOTICES.txt. Do not fetch fonts at runtime.
 
-1. Identity and background
+Static CRT finish
+The user's explicit answer 7 restored the concepts' CRT-esque finish, overriding
+the decorative-finish exclusion included in answer 20. Keep the static blueprint
+behind system bars/header, with subtle static scanlines, slight text shadow and
+edge falloff. The finish is a native drawable, with cached tile/gradient geometry;
+it never starts capture, records video, schedules animation frames or processes
+another app. Do not add a WebView or a new UI/rendering framework.
 
-Use the selected light BFI vector logo in both appearances: filled violet B and I, outline-only F, no dot. The launcher uses the same fixed light logo centered in an adaptive 108dp foreground, with a static opaque dark CRT background (charcoal/violet radial shading and faint lavender scanlines). Keep the full mark inside the centered 66dp safe region so circle, rounded-square and other launcher masks preserve all letters. Use @mipmap/ic_launcher for icon and roundIcon; API33+ supplies an alpha-only monochrome layer with transparent B/I letter knockouts. Android chooses the outer mask; do not bake a circle into either layer. Keep notification/QS small icons separate. Editable SVG sources are in ../assets/logo/bfi-launcher-*.svg. The app follows the system light/dark setting. Use bfi_page, bfi_grid, bfi_surface, bfi_outline, bfi_text_primary, bfi_text_secondary, bfi_action and bfi_notice resources; do not duplicate palette literals in screens. The CRT sample has its own fixed approved white/violet palette.
+Anatomy
+Thin header, compact logo/title, Back on details, Settings and confirmed scoped
+Restore defaults top-right (shader reset lives inside its parameter group).
+The system status bar uses the same tinted grid/CRT finish as the app header.
+Card-header top corners follow the inner 16dp radius, preserving the 2dp border. Equal-width columns at >=600dp; stack in narrower
+windows. Columns have fixed viewports and scroll independently when necessary.
+Individual boxed groups fit their contents; leave background below short groups.
+No giant enclosing cards or scrollbars inside every small group. A long app or
+shader list may use a bounded recycling list. Honor insets, keyboard, RTL and
+large text. Main controls reserve >=48dp targets, even when drawn pills are slim.
+Use about 14–16sp Jersey 15 row text, 14sp secondary/group labels and larger titles.
+Use 18dp outer corners, 12dp inset corners and segmented pill controls. Keep
+borders visible around group headers; header fill must not paint over the border.
 
-BlueprintDrawable owns the static page grid. ScreenActivity.configureInsets(root, window) draws it continuously behind the system status/navigation bars while padding interactive content for system bars, cutouts and the keyboard. Do not add a separate flat-colored title/status strip, duplicate an inset, hide system navigation, or put controls beneath a system bar. Keep dark/light system icon contrast appropriate. Floating platform dialogs remain normal dialogs.
+Home
+Left: state and configured-effect badge, full-width Start/Stop, actionable status
+only, read-only pattern/shader/scope rows; separate Test effects card with compact
+Start test. Right: BFI switch row then its own inset configuration row, CRT switch
+row then its own inset library row. Never merge switches and links to save space.
+Scope is a separate group: System wide / Selected apps segmented control, Apps
+link, Resume after unlock switch. The right column may scroll on the Nova; don't
+hide that constraint by shrinking targets. Resume remains repository-backed and
+is not changed by Settings/BFI resets. Home has no permanent motion preview.
+The real overlay continues to apply inside BFI on supported devices.
 
-2. Screen anatomy
+BFI and per-app editing
+Left: one static square V/B tile for every individual frame, wrapping in order;
+never collapse consecutive frames into a counted tile. Show actual black fraction,
+reported display rate and nominal repeat rate. Explain per-app overrides outside
+the diagram group. Right: numbered pairs, Add pair in the group header, visible
+and black numeric steppers, independent remove action. Valid global runs remain
+2–32 alternating entries of 1–120 frames. Keep invalid drafts across rotation;
+never save them. Existing per-app overrides keep their two-count limits, Use
+global and exclusion semantics. No per-app CRT profiles, PWM or phase calibration.
+All valid edits autosave/apply through the existing repository; no Save/Done.
 
-Use a fixed header and a body constrained to the remaining window height. Settings screens share activity_settings.xml and settings_header.xml: Back at the leading edge, vertically centered title, contextual Advanced when applicable, Restore defaults at the trailing edge. Advanced belongs to the global Settings header. Stop joins the header while enabled so it does not consume body height. Below 400dp, Advanced/Stop use a second header row. Keep headers usable at narrow widths; allow Restore defaults to wrap. Maintain at least 48dp touch targets. No Done or Save footer. Keep the keyboard hidden on forward navigation; explicit field/search taps can open it. Handle keyboard resize with the same bounded cards.
+Shaders
+Separate browser and studio screens. Start/Stop above the selector for recovery.
+The browser has one bounded recycling list, never inside another scroller.
+Category segments highlight
+Bundled and Favourites, with remaining real categories available via More. Search
+and visible recycling rows replace the old dropdown. Each row has a cached still
+thumbnail rendered through the actual shader, name, bundled
+indicator and an independently accessible favourite star; selected shader is also
+identified by the studio parameter heading. Open a row to enter the studio.
+Studio left: animated synthetic bouncing ball through the selected shader; right:
+that shader's actual parameters and a clearly scoped Restore shader defaults.
+Local previews require no capture consent, never auto-start global effects, and
+stop animating when hidden. Avoid applying local CRT twice when live CRT covers
+the app. Cached thumbnails contain synthetic pixels only, not captured screens.
+Keep the validation/probe before saving
+shader selection and the error/report dialogs for unsupported shaders.
+Right: actual parameter names, values and ranges; compact value/slider rows.
+Honor declared separator headings; otherwise use one Parameters group. Never
+invent universal CRT controls. Import and Download library remain visible; Check
+compatibility, Unavailable shaders and Delete downloaded shaders live in Library
+management. Destructive actions still confirm and retain existing safety checks.
+Screen capture consent remains required for CRT; never silently restart it.
 
-For two-panel screens use ScreenActivity.boundedCards / ScreenCards. Wide windows (>=600dp) use horizontal cards; narrow windows stack them. Card backgrounds and outlines belong to the ScrollView viewport, NOT to the scrolling content. The viewport is bounded/weighted to the available body height. Its inner LinearLayout can scroll independently. Do not wrap these cards in a whole-page ScrollView, nest scroll containers, or use wrap_content for an outer card's constrained height. Distinct wide/narrow scroll IDs preserve correct rotation state.
+Apps and Settings
+Apps: scope/default overview left, inline searchable installed-app list right.
+Rows retain icons, Default/Custom pattern status, separate selection checkbox and
+edit chevron. Do not classify emulators/games heuristically or invent Add App.
+Settings: grouped existing display/recovery/timed-test/diagnostic/permission
+controls, with secondary explanations behind information actions. Keep essential
+warnings and permissions explicit. Include About/notices/font credits. No false
+VRR/refresh locks, boot daemon, fullscreen hook, cache or backup controls.
 
-Home retains its bounded status/action cards and always-accessible On/Off control. Resume after unlock belongs in Home’s fixed header and autosaves through the repository; it is not an Advanced preference and neither Settings nor Advanced resets it. Its saved value, not restored widget state, drives the checkbox. Global Settings puts the synchronized motion comparison first, then the visible/black pattern diagram, black fraction and nominal cadence, all in the preview card. Frame pattern selection and custom slot controls go in the second card. Standard-size global Settings should show everything without scrolling in both Retroid orientations. Compact helper text replaces redundant prose; do not remove errors, essential controls or increase/decrease buttons to force a fit.
+Controller
+Show a compact legend during controller input; hide it on touch. A selects, B
+returns, X stops effects immediately, and Y asks to reset the current section
+(shader parameters in studio; pattern on BFI). Use circular letter badges and
+native focus. These shortcuts apply only inside BFI and its test screen, never
+intercept other apps. Browser has no Y reset. Keep list/star controls focusable.
 
-Advanced uses two bounded cards: display/recovery and tests/diagnostics/permissions. Its longer content scrolls inside its cards. Apps keeps System wide/Apps and Selected apps/search above a weighted recycling ListView. The app list stays inline, with no selection dialog or nested ScrollView. New long-content screens should follow the same bounded-viewport principle.
+Verification
+Run scripts/verify-in-toolbox.sh (debug APK, unit tests, lint), then inspect native
+views on the Nova. Preserve original preferences and shader library. Never clear
+app data to install an update. Optical timing and physical shader quality are
+separate from build/UI checks. No GitHub push or release is implied by UI work.
 
-3. Spacing and text
+Approved native follow-up — 2026-11-12 (supersedes earlier conflicting paragraphs)
+- Editor revision 11 is the composition reference. Landscape Shader settings has
+  preview/search/actual horizontal categories/list left and scoped parameters
+  right. Portrait uses the picker then an explicit Shader parameters screen/Back.
+- Home prioritizes CRT before BFI. Pattern uses V1-B1 - V2-B1 notation; tapping
+  changes only the fixed-height right-half value area to small scrolling tiles.
+- Saving status has a reserved 96dp slot in the first card title, invisible when
+  idle. It never adds/removes a page row. Native buttons use the same 12dp shape
+  family; segment/switch chrome fits inside a 48dp input band.
+- Categories slide/clip proportionally to list scrolling and reappear on reverse
+  scrolling. Keep search fixed. No GONE toggle or time-based pop animation.
+- Vertical scrolling reserves a 12dp gutter beyond card content. A recycling list
+  remains a single scroller; inset its card background rather than nesting it.
+- Footer separator is above controller prompts. Circular X/B/Y badges also appear
+  on matching buttons during controller input. X toggles Start/Stop locally.
+- Page and local test use the approved ceiling/floor perspective grid, slowly
+  moving outward. Native Canvas paints a bounded line set; motion is throttled
+  and stops when hidden or system animators are disabled. Preserve clear center.
+- Cards/bars softly blur only this generated grid using a shared native RenderNode
+  and RenderEffect on API31+. Content/text/borders stay sharp. No screen capture
+  is used for decorative blur. Older/software renderers retain tinted surfaces.
+  See developer.android.com/reference/android/graphics/RenderEffect and
+  developer.android.com/reference/android/graphics/Canvas#drawRenderNode(android.graphics.RenderNode).
+- Local test is independent of global session controls, uses the real shader
+  pipeline with a synthetic, aspect-correct ball/grid/counter source, and limits
+  effect demonstration to 15 seconds. Shader preview uses CRT only, BFI preview
+  BFI only, and Home test the configured pair. System bars remain visible. Global
+  activation, capture consent and production timing/overlay security are unchanged.
 
-Use 16dp outside screen padding, 12dp between panels, 12dp inside compact settings cards, 16dp inside Home cards, 4–8dp for tightly related controls. Use the existing card drawable for the radius and outline. Titles use sans-serif-medium and resource sizes; body text normally 16sp, helper text 14sp, compact comparison labels 12sp. Use sp for text and dp for geometry. Large text, multi-window, keyboard and long per-app titles must remain accessible through internal scrolling rather than clipping or shrinking text below readable size.
+Live glass correction — 2026-11-12
+- Backdrop and all visible glass owners invalidate together; cached child display
+  lists must not freeze the blur. Use one shared blurred grid RenderNode per page,
+  aligned to window coordinates, with the same animation timestamp as the grid.
+- Use an 8dp native blur and 60% surface tint; foreground controls/borders remain
+  sharp. Update at about 30fps for the very slow grid, stop when hidden, and honor
+  disabled system animations. No screen capture or third-party blur dependency.
 
-Keep both comparison labels in equal-width columns. Respect RTL ordering in labels and drawing: the BFI pane follows its label. Mark meaningful headings for accessibility on supported API levels. Give icon/image-only elements descriptions, and keep decorative effects out of the accessibility tree.
+Approved marked-area corrections — 2026-11-12
+- Preserve the selected-segment fill/outline/corner style. The visible selected
+  shape is inset 8dp vertically in the 48dp input band; the outer track is inset
+  4dp. This leaves real space between the two strokes without shrinking targets.
+- Native switches use a 48x28dp rounded rectangle, 20x20dp thumb and 4dp track
+  padding on every side. Scaled 6dp/4dp radii retain the cards' rounded-rectangle
+  character instead of a pill/circle. Thumb has vertical insets only: horizontal
+  optical insets otherwise offset the native track and consume the clearance.
+- A recycling list's card belongs to its stationary host, outside native fading.
+  Clip only rows to the inner round rect; keep the scrollbar in its outer gutter.
+  The empty state occupies the same host, without an extra blank weighted panel.
+- Home Pattern fills its half-row viewport and aligns short text/tiles to the end,
+  just like the other summary values. Overflow scrolls horizontally; tapping the
+  read-only value toggles initials/individual tiles without changing row height.
 
-4. Native CRT comparison
+Pattern actions and Back navigation — 2026-11-12
+- Pattern sequence owns Restore defaults in its card header. Reparent the existing
+  action so its scoped confirmation, repository readiness and circular Y badge
+  remain intact. Only Start/Stop and Settings remain in the page action area.
+- Add pair is a full-width outlined action after the pair editor, with a 12dp
+  top gap and the card's normal 10dp bottom padding. New pairs push it down in
+  document order; adding scrolls the same button into view. Keep the 16-pair limit.
+- Back uses the same 16dp, 2.5-unit stroke chevron as configuration links, mirrored
+  to the left. This supersedes the earlier pixel-step Back icon.
+- Decorative background wrapping must preserve explicit view padding. A card's
+  scrollbar gutter is an inset in its drawing, not extra host content padding.
 
-MotionPreview remains the single shared two-ball comparison for Home and Settings. CrtPreview composites prebuilt PNG assets: white background/baseline, transparent soft ball sprite with RGB fringes, eight scanline/grain overlays, and a curved-edge/vignette mask. Assets are drawable-nodpi and decoded once via CrtPreviewAssets; buffers are immutable/shared. Each View reuses Paint and RectF instances. Do not blur bitmaps, generate noise, decode resources, allocate full-frame buffers or create objects in onDraw/doFrame. No GLSL, AGSL, WebView or 3D engine is required.
+Fósforo shader navigation follow-up — 2026-11-12
+- Shader settings no longer contains a top animated preview card. Keep search,
+  fixed-height horizontal categories and the single bounded recycling shader list
+  on the left, with parameters on the right in landscape. Categories never collapse
+  in response to list scrolling. Portrait retains its Shader parameters action.
+- A thumbnail selects its shader through the existing validation/autosave path,
+  then opens the local animation test. The text button selects without opening it;
+  the favourite action stays independent. Thumbnail targets are at least 48dp tall.
+- "No CRT shader" is hidden from the catalog; its old id still loads for existing
+  installations. Turning off Shader on Home remains the supported bypass control.
+- BFI's motion card follows its pattern diagram/details. Its embedded source is a
+  deterministic still, rendered on demand without BFI or a continuous GL loop.
+  Tapping opens the existing animated BFI test; no global effects auto-start.
+- Added Geom Deluxe source chain for local verification. Its publication status
+  remains pending the bundle-license decision; do not publish a new release while
+  unresolved shader/dependency redistribution terms remain in the bundle.
 
-Use the existing Choreographer callbacks, absolute LocalBfiClock phase and reported display rate. Stop callbacks when detached, hidden or offscreen. Motion uses elapsed time; it must not depend on callback count. The two panes draw the same source at the same position. The filtered pane's black slots skip ALL CRT layers and draw opaque black; no glow/grain leaks into a black frame. Its decorative boundary outline may remain visible.
+Preview positioning and containment — 2026-11-12
+- BFI's still demo is first in the preview column, above its frame diagram. The
+  overrides explanation follows the Pattern sequence card in the controls column.
+  Portrait therefore starts with the demo and diagram, then the sequence and help.
+  Keep the still-until-tapped behavior and the existing animated test action.
+- Shader thumbnails preserve source aspect ratio using FIT_CENTER, with a 6dp
+  content inset inside the shared rounded outline and native outline clipping.
+  This prevents square bitmap corners from covering the border without stretching
+  or cropping the shader image. Preserve the existing 56x48dp preview target.
 
-LocalBfiPresentation exempts the entire comparison rectangle from the surrounding in-app mask because MotionPreview owns its filtered pane. This avoids applying a global pattern on top of a per-app/draft preview. The Home preview and surrounding mask still share the same absolute phase and committed global pattern. Settings previews use valid draft values; invalid text keeps the last valid animation. A comparison never starts the system overlay, writes settings, contributes diagnostic counters or claims physical display timing accuracy.
+Curated prototype bundle — 2026-11-12
+The user explicitly repeated the request to bundle Mattias and VHS/CRT from the
+Shader app. The local app now carries the entire eight-item prototype selection:
+Mattias, Hyllian NTSC Rainbow, zfast Composite, Newpixie, Geom, Geom Deluxe, Lottes
+and VHS/Godot. Copy original pass chains, includes and textures, preserve notices,
+and retain the licensed reconstructed Newpixie frame already used by Fósforo.
+This inclusion does not resolve missing third-party redistribution terms; no
+public push or release is implied. Existing global activation and timing are kept.
 
-The fixed raster approximation is for these preview animations, not a general CRT filter over third-party apps. Its visual match and frame timing need actual device checks. Asset regeneration is an offline developer task; do not add runtime dependencies or require users to install graphics tools.
+Shader category ordering and NTSC VHS — 2026-11-12
+- Favourites is first only when at least one available shader is favourited;
+  otherwise hide that category. All categories is next (first without favourites),
+  real source categories follow, and Bundled is always last. The first category is
+  the default on a fresh screen; keep a valid explicit selection while editing.
+  Removing the final available favourite falls back to All categories if needed.
+- NTSC VHS uses the upstream vhs/ntsc-vcr.slangp five-pass preset with every include
+  and its play texture. It and VHS/Godot belong to VHS, not CRT. Preserve the stable
+  ID already assigned by the source downloader to avoid breaking old favourites.
 
-5. Actions and persistence
+Shared navigation and heading finish — 2026-11-12
+- Scope (Home and Apps) and shader categories use UiSkin.segmentTrack: horizontal,
+  no baseline alignment, exactly the shared 48dp band and explicit 2dp side/zero
+  vertical padding. Keep the existing shared segment drawables and selected style.
+- Page headings use Home's Jersey 15 30sp phosphor/amber colour and subtle dark-mode
+  glow. Card headings remain compact and use the theme's purple logo-outline colour.
+  This applies to native detail pages and the Test effects page, not ordinary body
+  labels or state values.
+- Back is an accessible, icon-only mirrored configuration chevron, now 32dp in a
+  minimum 56dp target. Its Back content description and circular B prompt remain.
+  Home's Settings action uses 20sp text and a 56dp minimum height. Generic Settings
+  navigation appears only on Home; remove the old Pattern-page Settings action.
+- Start/Stop effects controls share a native 22dp power glyph. Keep the controller
+  badge at the end and power glyph at the start when both are visible.
+- Suppress only the redundant Home capture-consent reason below Start. Starting
+  CRT still requests consent; permission errors, privacy text and Restart CRT
+  remain available through their existing controls.
 
-Valid settings changes autosave through the existing SettingsRepository/SettingsCommitQueue and apply to enabled sessions only after committing. Preserve partial numeric drafts across rotation; reject invalid/overflow values without saving them. Never let a stale save overwrite another setting. Reject delayed preset callbacks whose position is no longer the Spinner’s current selection, so an earlier preset cannot replace a newer custom draft. Do not add a Save/Done/discard flow.
+Per-app shaders and removal of obsolete control — 2026-11-12
+- Each app's details action offers Shader settings and BFI pattern. Reuse the same
+  shader browser/studio, scoped to that package; choosing a shader or editing a
+  parameter autosaves an independent override. Use global shader removes it.
+- App overrides inherit the global Shader enable switch and existing scope rules.
+  Runtime resolves shader and parameters for the foreground package without
+  restarting capture or changing the working BFI/CRT rendering architecture.
+- Restore shader defaults resets parameters only for the current app/global scope.
+  Clearing app rules or deleting downloaded shaders also clears affected shader
+  overrides. A local preview opened here uses this app's shader settings.
+- Remove Resume after unlock from Home and its UI listeners. Retain its legacy
+  persisted key/internal behavior for compatibility; no further unlock changes.
+- Application icon/roundIcon use one Fósforo adaptive icon resource inherited by
+  activities/services. Notification and tile use the matching monochrome CRT mark.
+  Do not clear launcher storage or user settings to refresh Android icon caches.
 
-Restore defaults is scoped, top-right and confirmed; preserve permission grants and first-use acknowledgment. Apps and per-app rules retain their existing semantics. Keep Off/On intent separate from preferred scope: a tile tap toggles preferred scope versus Off, and long press opens the explicit mode menu. Opening/rotating screens or granting setup access must never activate BFI.
-
-Keep a Stop action reachable while enabled. On Android 13+ the actual accessibility overlay remains active over the app’s controls and allows touch through. Do not weaken Android overlay security, reduce real black-frame opacity, auto-start after process death/reboot, or alter timed deadlines to make a UI demo work.
-
-6. Required review for UI changes
-
-Build and run relevant existing tests/lint using the established SDK/JDK or Toolbx script; do not migrate the toolchain for a visual edit. Inspect the actual app on Retroid in light/dark and wide/narrow layouts. Normal Home and global Settings must show all primary content at the standard text size. Check card borders stay stationary while overflowing content moves. Check header alignment, status-bar grid continuity, keyboard insets, per-app editing and accessible large-text scrolling. Rotate with drafts and while locally enabled; confirm no crash or automatic activation. Preserve and restore the user's CURRENT preferences and device display/theme settings after test edits. Never restore a stale backup from an earlier release.
-
-For previews inspect both visible and black phases, including local BFI enabled, and confirm the reference stays visible. Report actual measured device render observations separately from claims about physical 120Hz/optical BFI accuracy. Share a versioned APK and its checksum with the original package/signing identity. Keep README, implementation notes and release progress current.
-
-Native API references
-
-https://developer.android.com/develop/ui/views/layout/edge-to-edge-manually
-https://developer.android.com/develop/ui/views/graphics/hardware-accel
+First-run setup — 1.0, 2026-11-12
+- Remove the old Before you start acknowledgement dialog and its activation gate.
+  Preserve the legacy stored notice key for upgrade compatibility; it is no longer
+  required for activation. Keep the concise BFI flashing hint on its switch.
+- Starting without required access opens setup immediately. Accessibility and the
+  Stop notification are separate mandatory requirements for modern output.
+- Returning from either permission screen or a notification grant/denial refreshes
+  setup and lists what is still missing. Cancel leaves effects off. Granting both
+  does not start effects; the user presses Start again. Never open capture consent
+  before output permissions are ready. Legacy output still requires overlay access.
+- Apply the shared readiness barrier to all activation routes, including capture
+  results and Quick Settings; retain actual POST_NOTIFICATIONS and channel checks.

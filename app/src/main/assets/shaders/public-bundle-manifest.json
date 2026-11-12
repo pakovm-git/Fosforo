@@ -1,0 +1,65 @@
+{
+  "source": "https://github.com/libretro/slang-shaders",
+  "commit": "2345ee91602a7404d3a1a6a5df6108d7305fdad4",
+  "modifications": {
+    "vhs/vhs_and_crt_godot.slangp": "single CC0 core pass; optional font/OSD pass omitted"
+  },
+  "files": [
+    {
+      "path": "shaders/upstream/slang/crt/crt-geom.slangp",
+      "sha256": "094d5133a3b6fbb4c2e6cba65141e5b850517aa3201bea7bdb41e4899087b60b"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/crt-lottes.slangp",
+      "sha256": "a668d2ddf52f6b35f3e7cf9a891b20edc560409791838f334fe18ce058a5a82c"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/newpixie-crt.slangp",
+      "sha256": "431953def20f7fcdbca1c5778c648fa9ba2839e16a608bac61cddaa36b2c8f5c"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/shaders/crt-geom.slang",
+      "sha256": "6533ad97601445f35a1b4f25ad54974ee9983fef0337ffec11c9c372226dbb58"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/shaders/crt-lottes.slang",
+      "sha256": "e382eec413c2acf5d03cce65d447347553032acf2e550826d0142a9c51d559ef"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/shaders/newpixie/accumulate.slang",
+      "sha256": "20f52f5949989167a1aba194358d6b85058ee51da9f532d51c769368c0696d9d"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/shaders/newpixie/blur_horiz.slang",
+      "sha256": "528fb28269f5dad61d14a8837b94d089b6faf76622166326b769f0ff8fd843c4"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/shaders/newpixie/blur_vert.slang",
+      "sha256": "62242ecf8988af6350c7fdd619e1c432d7eebf5dafe152e554d6da3efa663ec0"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/shaders/newpixie/crtframe.png",
+      "sha256": "36222d142248b4ee98f164cf7557c7fc383edacf05b387c89604d46c613780aa"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/shaders/newpixie/newpixie-crt.slang",
+      "sha256": "59e93ea41509f4bbba45ef596f8cb3b685a48f3a95949de9e239377dba755790"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/shaders/zfast_crt/zfast_crt_composite.slang",
+      "sha256": "f65a6c0eaa2080c53c8769f5b1d71fd5baf577d7a4852b6eefe56dfb40fa7f12"
+    },
+    {
+      "path": "shaders/upstream/slang/crt/zfast-crt-composite.slangp",
+      "sha256": "639e0519cff5857f26ccd77ce3550d14e427584e9c0cc5a14ed89faee71f4475"
+    },
+    {
+      "path": "shaders/upstream/slang/vhs/shaders/vhs_and_crt_godot.slang",
+      "sha256": "90d0948f5e0966a73016ecc7fb60bf82f35137ff207626f960462b537b471b94"
+    },
+    {
+      "path": "shaders/upstream/slang/vhs/vhs_and_crt_godot.slangp",
+      "sha256": "405f1ecf8cd0d34efeb72171987598696b528fd007757eba20d689e0adaf8bbe"
+    }
+  ]
+}

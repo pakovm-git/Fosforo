@@ -35,6 +35,20 @@ class ShaderLibraryArchiveTest {
         assertEquals(folder,ShaderLibraryArchive.install(zip,root,revision))
         assertThrows(IllegalArgumentException::class.java){ShaderCatalog.resolve(mattias.assetPath,"../../escape.slang")}
     }
+    @Test fun failedPresetsAreExcludedWithoutDeletingTheirDependencies()=fixture(mapOf(
+        "crt/a.slangp" to "shaders=1\nshader0=../stock.slang",
+        "crt/b.slangp" to "shaders=1\nshader0=../stock.slang",
+        "stock.slang" to source
+    )){zip,root->
+        val folder=ShaderLibraryArchive.install(zip,root,revision)
+        File(folder,".bfi-compatible").writeText("crt/a.slangp")
+        assertEquals(listOf("crt/a"),ShaderLibraryArchive.choices(folder,revision).map{it.label})
+        assertEquals(2,ShaderLibraryArchive.choices(folder,revision,false).size)
+        assertTrue(File(folder,"crt/b.slangp").isFile)
+        assertTrue(File(folder,"stock.slang").isFile)
+        File(folder,".bfi-compatible").writeText("")
+        assertTrue(ShaderLibraryArchive.choices(folder,revision).isEmpty())
+    }
     @Test fun badArchiveNeverReplacesAnExistingSnapshot()=fixture(mapOf("../escape.slangp" to "shaders=1")){zip,root->
         val old=File(root,"b".repeat(40)).apply{mkdirs()};File(old,"kept").writeText("old")
         assertThrows(IllegalArgumentException::class.java){ShaderLibraryArchive.install(zip,root,revision)}
